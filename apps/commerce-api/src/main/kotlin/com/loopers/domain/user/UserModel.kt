@@ -22,13 +22,17 @@ class UserModel(
 ) : BaseEntity() {
     var loginId: String = login
         protected set
+
     var name: String = name
         protected set
+
     var password: String = password
         protected set
+
     @field:Embedded
     var birth: BirthVO = birth
         protected set
+
     @field:Embedded
     var email: EmailVO = email
         protected set
