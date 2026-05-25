@@ -38,7 +38,7 @@
 | 저자          | `Author`       | 도서를 집필한 사람 (다중 저자 가능)                                           |
 | 기술 카테고리 | `TechCategory` | 도서가 속하는 IT 기술 분야 (예: Backend, Frontend, DevOps, AI)                |
 | 난이도        | `Level`        | 도서의 학습 난이도 (BEGINNER / INTERMEDIATE / ADVANCED)                       |
-| 재고          | `Stock`        | 현재 판매 가능한 도서 수량                                                    |
+| 재고          | `Stock`        | `Product`와 1:1로 분리된 창고 실재고 엔티티. 판매 가능 수량(`quantity`)을 보유. 차감/복구 책임을 자체 보유 |
 | 좋아요        | `Like`         | 유저가 도서에 관심을 표시하는 행위                                            |
 | 주문          | `Order`        | 구매 의사를 확정한 문서 (브랜드 무관 단일 건)                                 |
 | 주문 상품     | `OrderItem`    | Order 안에 담긴 개별 상품 단위                                                |
@@ -206,7 +206,10 @@ graph LR
 - 상품은 기술 카테고리(`TechCategory`)와 난이도(`Level`)를 반드시 가진다
 - 브랜드가 삭제되면 소속 상품도 함께 삭제된다
 - 저자(`Author`)는 MVP에서 단일 문자열로 저장한다 (예: `"홍길동, 김철수"`). 다중 저자 별도 엔티티 분리는 확장 포인트
-- 재고(`Stock`)가 0인 상품은 **품절** 상태다 — 탐색·상세 조회는 가능하나 주문은 불가
+- **재고(`Stock`)는 Product와 1:1로 분리된 별도 엔티티다.** Product는 카탈로그(도서 정보)를, Stock은 창고 실수량을 책임진다. 상품 등록 시 Stock도 함께 생성된다 (`quantity` 초기값) — `AdminProductFacade`가 단일 트랜잭션 안에서 Product + Stock을 함께 생성
+- **품절(SOLD_OUT)은 `Stock.quantity == 0`의 파생 상태다** (`Stock.isSoldOut()`로 노출). 별도 status 필드를 두지 않아 quantity가 진실의 유일 소스(SSOT). 카탈로그 응답에는 `soldOut: boolean` 플래그로 노출
+- 주문 흐름은 **사전 체크 → 차감** 2단계: ① `Stock.isAvailable(qty)` 미달 시 `SOLD_OUT` 응답으로 분기(throw 아님), ② 통과 시 `Stock.reduce(qty)` 호출. ②에서의 throw는 동시성 race(체크와 차감 사이 다른 주문 차감) 최후 안전망 — 운영상 드물게 발생하며 사용자에게는 "주문이 몰려 처리에 실패했습니다" 류 메시지로 매핑
+- **재고 변동 이력(`StockMovement`)은 MVP 범위 외 확장 포인트**다. 감사·정산 요건이 생길 때 별도 테이블(`stock_movements`)로 도입
 
 **TechCategory 분류:**
 
@@ -241,7 +244,7 @@ graph LR
 | R6  | 상품 목록·상세 조회는 누구나 가능하다                                          | 모두   |
 | R7  | 상품 목록 정렬: `latest`(필수), `price_asc`·`likes_desc`(선택)                 | 모두   |
 | R8  | 대고객에게 재고 수량·삭제 상태·ISBN을 노출하지 않는다                          | System |
-| R9  | 재고 0인 상품에 대한 주문은 R2(재고 부족)와 동일하게 주문 전체 실패로 처리한다 | System |
+| R9  | 재고 0인 상품(`Stock.isSoldOut()`)에 대한 주문은 사전 체크 단계에서 `SOLD_OUT` 응답으로 분기한다. 체크 통과 후 동시성으로 재고가 0이 된 경우는 R2(재고 부족) 흐름으로 폴백 | System |
 
 **미결 사항 (공동 결정 필요):**
 - 브랜드 필터 UI를 보안·네트워크 카테고리 상품에만 노출할지, 전체 공개할지
@@ -347,7 +350,7 @@ classDiagram
     }
 
     class OrderItem {
-        +OrderId orderId
+        +Order order
         +ProductId productId
         +String productNameSnapshot
         +Price unitPriceSnapshot
@@ -586,10 +589,19 @@ classDiagram
         +Author author
         +TechCategory category
         +Level level
-        +Price price    
-        +Stock stock
+        +Price price
         +LikeCount likeCount
         +ProductStatus status
+    }
+
+    class Stock {
+        +StockId id
+        +ProductId productId
+        +Quantity quantity
+        +reduce(amount)
+        +restore(amount)
+        +isAvailable(required) bool
+        +isSoldOut() bool
     }
 
     class TechCategory {
@@ -623,7 +635,7 @@ classDiagram
         DELETED
     }
 
-    class Stock {
+    class Quantity {
         <<value object>>
         int value
     }
@@ -638,11 +650,13 @@ classDiagram
     Product --> TechCategory : 분야
     Product --> Level : 난이도
     Product --> ProductStatus : 상태
-    Product --> Stock : 재고
+    Product "1" -- "1" Stock : 재고 보유 (productId 참조)
+    Stock --> Quantity : 수량
     Product --> LikeCount : 좋아요 수
 ```
 
-- `Stock`: 0 이상. 차감 책임은 Order 컨텍스트에 있다.
+- `Stock`: **Product와 1:1로 분리된 별도 Aggregate**. `productId`로 Product를 ID 참조한다 (직접 객체 참조 금지). `quantity ≥ 0` 불변식을 보유하고 `reduce()`/`restore()`로 자체 상태를 관리한다. 차감 호출은 Order 컨텍스트가 트리거하고, 복구는 결제 실패 보상 흐름이 트리거한다.
+- `Quantity`: 0 이상. Stock과 OrderItem이 공유하는 값 객체.
 - `LikeCount`: 0 이상. 증감 책임은 Like 컨텍스트에 있다.
 
 ### 브랜드·상품 — 상태 생명주기
