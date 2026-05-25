@@ -28,6 +28,13 @@ class OrderModel private constructor (
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "order", cascade = [CascadeType.ALL], orphanRemoval = true)
     private val orderItem: MutableList<OrderItemModel> = mutableListOf()
 
+    fun cancel() {
+        this.ensure(OrderIsCancellable)
+        this.status = OrderStatus.CANCELLED
+        this.delete()
+        this.items.forEach { it.delete() }
+    }
+
     val items: List<OrderItemModel>
         get() = orderItem.toList()
 

@@ -7,3 +7,9 @@ object OrderItemsNotEmpty : Spec<List<OrderItemModel>>(
 ) {
     override fun isSatisfiedBy(candidate: List<OrderItemModel>): Boolean = candidate.isNotEmpty()
 }
+
+object OrderIsCancellable : Spec<OrderModel>(
+    errorMessage = "PENDING 상태의 주문만 취소할 수 있습니다."
+) {
+    override fun isSatisfiedBy(candidate: OrderModel): Boolean = candidate.status == OrderStatus.PENDING
+}

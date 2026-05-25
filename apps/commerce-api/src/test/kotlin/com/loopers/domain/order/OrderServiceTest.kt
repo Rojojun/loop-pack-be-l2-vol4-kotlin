@@ -33,4 +33,23 @@ class OrderServiceTest @Autowired constructor(
         Assertions.assertThat(orderModel.items.size).isEqualTo(orderItemModels.size)
         Assertions.assertThat(orderModel.items.first()).isEqualTo(orderItemModels.first())
     }
+
+    @DisplayName("OrderModel을 지울경우 OrderModelItem 까지 한 번에 삭제가 된다.")
+    @Test
+    fun deleteOrderSuccess() {
+        // given
+        val userId = 1L
+        val orderItemModels = listOf(OrderItemModel.of(1L, 2), OrderItemModel.of(2L, 2))
+        val orderModel = OrderModel.of(userId, orderItemModels)
+            .let { orderRepository.save(it) }
+        Assertions.assertThat(orderModel.deletedAt).isNull()
+
+        // when
+        orderService.deleteOrder(orderModel.id, userId)
+
+        // then
+        val refreshed = orderRepository.findByIdOrNull(orderModel.id)!!
+        Assertions.assertThat(refreshed.deletedAt).isNotNull
+        Assertions.assertThat(refreshed.status).isEqualTo(OrderStatus.CANCELLED)
+    }
 }
