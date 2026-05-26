@@ -1,18 +1,51 @@
 package com.loopers.application.product
 
+import com.loopers.domain.brand.BrandService
+import com.loopers.domain.like.LikeService
+import com.loopers.domain.product.Level
+import com.loopers.domain.product.ProductDomain
+import com.loopers.domain.product.ProductDomainService
+import com.loopers.domain.product.ProductRepository
+import com.loopers.domain.product.ProductService
+import com.loopers.domain.product.TechCategory
+import com.loopers.domain.stock.StockService
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Component
 
 @Component
-class ProductFacade {
+class ProductFacade(
+    private val productService: ProductService,
+    private val brandService: BrandService,
+    private val stockService: StockService,
+    private val likeService: LikeService
+) {
     fun findProducts(
         brandId: Long?,
-        category: String?,
-        level: String?,
+        category: TechCategory?,
+        level: Level?,
         sort: String,
         pageable: Pageable,
-    ): Page<ProductInfo> = TODO("ProductService.findProducts + 정렬·필터 + ProductInfo 매핑")
+    ): Page<ProductInfo> {
+        val productModels = productService.getProducts(brandId, category, level, sort, pageable)
+        val productModelIds = productModels.map { it.id }.toList()
+        val brandModelIds = productModels.map { it.brandId }.distinct().toList()
 
-    fun getProduct(productId: Long): ProductInfo = TODO("ProductService + BrandService + StockService 조합")
+        val brandModels = brandService.getBrandsByIds(brandModelIds)
+        val stockModels = stockService.getStocksByProductId(productModelIds)
+        val likeCounters = likeService.getLikeCountGroupByProductId(productModelIds)
+
+        return ProductDomainService.assemble(productModels, brandModels, likeCounters, stockModels)
+            .map { ProductInfo.of(it) }
+    }
+
+    fun getProduct(productId: Long): ProductInfo {
+        val product = productService.getProduct(productId)
+        val brand = brandService.getBrandActive(product.brandId)
+        val stock = stockService.getStockById(product.id)
+        val likeCount = likeService.getLikeCount(product.id)
+
+        return ProductDomainService.getProductDomainForUser(product, brand ,stock, likeCount)
+            .let { ProductInfo.of(it) }
+    }
 }

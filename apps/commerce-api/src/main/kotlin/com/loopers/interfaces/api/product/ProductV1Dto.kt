@@ -20,7 +20,18 @@ class ProductV1Dto {
         val soldOut: Boolean,
     ) {
         companion object {
-            fun from(info: ProductInfo): ProductResponse = TODO("ProductInfo → ProductResponse 매핑")
+            fun from(info: ProductInfo): ProductResponse = ProductResponse(
+                productId = info.productId,
+                name = info.name,
+                author = info.author,
+                category = info.category.name,
+                level = info.level.name,
+                price = info.price.toInt(),
+                likeCount = info.likeCount,
+                brandId = info.brandId,
+                brandName = info.brandName,
+                soldOut = info.soldOut,
+            )
         }
     }
 }

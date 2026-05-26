@@ -26,7 +26,7 @@ class ProductAdminV1Controller(
         @RequestParam(required = false) brandId: Long?,
         pageable: Pageable,
     ): ApiResponse<Page<ProductAdminV1Dto.ProductAdminResponse>> {
-        val page = adminProductFacade.findProducts(brandId, pageable)
+        val page = adminProductFacade.getProducts(brandId, pageable)
             .map { ProductAdminV1Dto.ProductAdminResponse.from(it) }
         return ApiResponse.success(page)
     }
@@ -51,6 +51,7 @@ class ProductAdminV1Controller(
             level = request.level,
             price = request.price,
             initialQuantity = request.initialQuantity,
+            description = request.description,
         )
         val response = ProductAdminV1Dto.ProductAdminResponse.from(info)
         return ApiResponse.success(response)
