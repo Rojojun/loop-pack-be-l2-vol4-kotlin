@@ -1,8 +1,13 @@
 package com.loopers.application.brand
 
+import com.loopers.domain.brand.BrandService
 import org.springframework.stereotype.Component
 
 @Component
-class BrandFacade {
-    fun getBrand(brandId: Long): BrandInfo = TODO("BrandService 조율하여 BrandInfo 반환")
+class BrandFacade(
+    private val brandService: BrandService
+) {
+    fun getBrand(brandId: Long): BrandInfo =
+        brandService.getBrand(brandId)
+            .let { BrandInfo(id = it.id, name = it.name) }
 }

@@ -1,18 +1,35 @@
 package com.loopers.application.brand
 
+import com.loopers.domain.brand.BrandService
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Component
 
 @Component
-class AdminBrandFacade {
-    fun getBrands(pageable: Pageable): Page<AdminBrandInfo> = TODO("BrandService 조회 + AdminBrandInfo 매핑")
+class AdminBrandFacade(
+    private val brandService: BrandService
+) {
+    fun getBrands(pageable: Pageable): Page<AdminBrandInfo> {
+        return brandService.getBrands(pageable)
+            .map { AdminBrandInfo(id = it.id, name = it.name, status = it.status) }
+    }
 
-    fun getBrand(brandId: Long): AdminBrandInfo = TODO("BrandService.getBrandModel + AdminBrandInfo.from")
+    fun getBrand(brandId: Long): AdminBrandInfo {
+        val brandModel = brandService.getBrand(brandId)
+        return AdminBrandInfo(id = brandModel.id, name = brandModel.name, status = brandModel.status)
+    }
 
-    fun createBrand(name: String): AdminBrandInfo = TODO("BrandService.createBrandModel")
+    fun createBrand(name: String): AdminBrandInfo {
+        val brandModel = brandService.createBrandModel(name)
+        return AdminBrandInfo(id = brandModel.id, name = brandModel.name, status = brandModel.status)
+    }
 
-    fun updateBrand(brandId: Long, name: String): AdminBrandInfo = TODO("BrandService.updateBrand")
+    fun updateBrand(brandId: Long, name: String): AdminBrandInfo {
+        val brandModel = brandService.updateBrand(brandId, name)
+        return AdminBrandInfo(id = brandModel.id, name = brandModel.name, status = brandModel.status)
+    }
 
-    fun deleteBrand(brandId: Long): Unit = TODO("Brand cascade soft delete (Product/Stock/Like 조율)")
+    fun deleteBrand(brandId: Long) {
+        brandService.delete(brandId)
+    }
 }

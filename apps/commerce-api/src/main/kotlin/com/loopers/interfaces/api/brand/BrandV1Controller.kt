@@ -1,7 +1,6 @@
 package com.loopers.interfaces.api.brand
 
 import com.loopers.application.brand.BrandFacade
-import com.loopers.application.brand.BrandInfo
 import com.loopers.interfaces.api.ApiResponse
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -15,9 +14,8 @@ class BrandV1Controller(
 ) : BrandV1ApiSpec {
 
     @GetMapping("/{brandId}")
-    override fun getBrand(@PathVariable brandId: Long): ApiResponse<BrandV1Dto.BrandResponse> {
-        val info: BrandInfo = brandFacade.getBrand(brandId)
-        val response = BrandV1Dto.BrandResponse.from(info)
-        return ApiResponse.success(response)
-    }
+    override fun getBrand(@PathVariable brandId: Long): ApiResponse<BrandV1Dto.BrandResponse> =
+        brandFacade.getBrand(brandId)
+            .let { BrandV1Dto.BrandResponse.from(it) }
+            .let { ApiResponse.success(it) }
 }

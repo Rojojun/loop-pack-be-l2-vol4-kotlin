@@ -1,11 +1,10 @@
 package com.loopers.interfaces.api.brand
 
 import com.loopers.application.brand.AdminBrandInfo
+import com.loopers.domain.brand.BrandStatus
 import jakarta.validation.constraints.NotBlank
 
 class BrandAdminV1Dto {
-    // TODO: Request/Response 필드를 docs/design/01a-api-spec.md 참고하여 채우세요.
-
     data class CreateBrandRequest(
         @field:NotBlank
         val name: String,
@@ -19,10 +18,15 @@ class BrandAdminV1Dto {
     data class BrandAdminResponse(
         val id: Long,
         val name: String,
-        val status: String,
+        val status: BrandStatus,
     ) {
         companion object {
-            fun from(info: AdminBrandInfo): BrandAdminResponse = TODO("AdminBrandInfo → BrandAdminResponse 매핑")
+            fun from(info: AdminBrandInfo): BrandAdminResponse =
+                BrandAdminResponse(
+                    id = info.id,
+                    name = info.name,
+                    status = info.status,
+                )
         }
     }
 }
