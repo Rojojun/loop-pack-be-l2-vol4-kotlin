@@ -1,21 +1,55 @@
 package com.loopers.application.like
 
+import com.loopers.domain.like.LikeService
+import com.loopers.domain.like.ProductId
+import com.loopers.domain.product.ProductService
+import com.loopers.domain.user.UserService
+import com.loopers.support.error.CoreException
+import com.loopers.support.error.ErrorType
 import org.springframework.stereotype.Component
 
 @Component
-class LikeFacade {
+class LikeFacade(
+    private val likeService: LikeService,
+    private val productService: ProductService,
+    private val userService: UserService
+) {
     /**
      * 좋아요 등록. 신규 생성 시 true, 이미 존재 시 false (멱등 no-op).
      */
-    fun addLike(loginId: String, productId: Long): Boolean =
-        TODO("LikeService.checkLikeExists → 없으면 createLike + ProductService.incrementLikeCount")
+    fun addLike(loginId: String, productId: Long): Boolean {
+        val user = userService.getByLoginId(loginId)
+        val product = productService.getProduct(productId)
+        return likeService.addLike(user.id, product.id)
+    }
 
     /**
      * 좋아요 취소. 존재 시 삭제, 미존재 시 no-op. 결과 무관 항상 정상 종료.
      */
-    fun removeLike(loginId: String, productId: Long): Unit =
-        TODO("LikeService.findLikeModel → 있으면 deleteLike + ProductService.decrementLikeCount")
+    fun removeLike(loginId: String, productId: Long): Unit {
+        val user = userService.getByLoginId(loginId)
+        val product = productService.getProduct(productId)
 
-    fun findLikes(requestLoginId: String, pathUserId: Long): List<LikedProductInfo> =
-        TODO("본인 검증 + LikeService.findLikesByUserId + ProductService 조합")
+        likeService.remove(user.id, product.id)
+    }
+
+    fun findLikes(requestLoginId: String, pathUserId: Long): List<LikedProductInfo> {
+        val user = userService.getByLoginId(requestLoginId)
+        if (user.id != pathUserId) {
+            throw CoreException(ErrorType.FORBIDDEN, "로그인한 유저의 아이디가 다릅니다.")
+        }
+
+        val likes = likeService.getLikeByUserId(user.id).filter { it.available() }
+        val productIds = likes.map { like -> like.productId }
+        val likeCounts = likeService.getLikeCountGroupByProductId(productIds)
+
+        val products = productService.getProducts(productIds)
+            .associateBy { it.id }
+
+        return likes.map {
+            val product = products.getValue(it.productId)
+            val likeCount = likeCounts[ProductId(product.id)]
+            LikedProductInfo.of(it, product, likeCount)
+        }
+    }
 }

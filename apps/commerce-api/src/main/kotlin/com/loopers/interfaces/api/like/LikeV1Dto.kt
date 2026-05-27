@@ -4,8 +4,6 @@ import com.loopers.application.like.LikedProductInfo
 import java.time.LocalDateTime
 
 class LikeV1Dto {
-    // TODO: Response 필드를 docs/design/01a-api-spec.md 참고하여 채우세요.
-
     data class LikedProductResponse(
         val productId: Long,
         val productName: String,
@@ -17,7 +15,15 @@ class LikeV1Dto {
     ) {
         companion object {
             fun from(info: LikedProductInfo): LikedProductResponse =
-                TODO("LikedProductInfo → LikedProductResponse 매핑")
+                LikedProductResponse(
+                    productId = info.productId,
+                    productName = info.productName,
+                    category = info.category.name,
+                    level = info.level.name,
+                    price = info.price.toInt(),
+                    likeCount = info.likeCount,
+                    likedAt = info.likedAt.toLocalDateTime(),
+                )
         }
     }
 }
