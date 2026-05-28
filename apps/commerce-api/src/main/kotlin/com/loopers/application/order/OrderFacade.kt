@@ -1,6 +1,6 @@
 package com.loopers.application.order
 
-import com.loopers.domain.order.OrderItemModel
+import com.loopers.domain.order.OrderDomainService
 import com.loopers.domain.order.OrderService
 import com.loopers.domain.product.ProductService
 import com.loopers.domain.stock.StockService
@@ -31,11 +31,10 @@ class OrderFacade(
                 .let { stockService.reduceStock(it, quantity) }
         }
 
-        return productQuantityPairs.map { (productId, quantity) ->
-            val product = productsById.getValue(productId)
-            OrderItemModel.of(productId, product.name, product.price, quantity) }
-            .let { orderService.createOrder(user.id, it) }
-            .let { OrderInfo(it.id) }
+        val items = OrderDomainService.toOrderItems(productQuantityPairs, productsById)
+        val orderModel = orderService.createOrder(user.id, items)
+
+        return OrderInfo(orderModel.id)
     }
 
     @Transactional(readOnly = true)
