@@ -25,7 +25,7 @@ class OrderServiceTest @Autowired constructor(
         // given
         val userId = 1L
 
-        val orderItemModels = listOf(OrderItemModel.of(1L, 2), OrderItemModel.of(2L, 2))
+        val orderItemModels = listOf(OrderItemModel.of(1L, "테스트 상품1", 1000.0, 2), OrderItemModel.of(2L, "테스트 상품2", 2000.0, 2))
         // when
         val orderModel = orderService.createOrder(userId, orderItemModels)
 
@@ -39,7 +39,7 @@ class OrderServiceTest @Autowired constructor(
     fun deleteOrderSuccess() {
         // given
         val userId = 1L
-        val orderItemModels = listOf(OrderItemModel.of(1L, 2), OrderItemModel.of(2L, 2))
+        val orderItemModels = listOf(OrderItemModel.of(1L, "테스트 상품1", 1000.0, 2), OrderItemModel.of(2L, "테스트 상품2", 2000.0, 2))
         val orderModel = OrderModel.of(userId, orderItemModels)
             .let { orderRepository.save(it) }
         Assertions.assertThat(orderModel.deletedAt).isNull()

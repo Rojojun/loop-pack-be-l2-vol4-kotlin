@@ -1,6 +1,7 @@
 package com.loopers.domain.order
 
 import com.loopers.support.error.CoreException
+import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
@@ -26,8 +27,8 @@ class OrderModelTest {
                 val secondQuantity = 2
 
                 // when
-                orderItemModel1 = OrderItemModel.of(firstProductId, firstQuantity)
-                orderItemModel2 = OrderItemModel.of(secondProductId, secondQuantity)
+                orderItemModel1 = OrderItemModel.of(firstProductId, "테스트 상품1", 1000.0, firstQuantity)
+                orderItemModel2 = OrderItemModel.of(secondProductId, "테스트 상품2", 2000.0, secondQuantity)
 
                 // then
                 Assertions.assertNull(orderItemModel1.order)
@@ -63,5 +64,21 @@ class OrderModelTest {
         assertThatThrownBy { OrderModel.of(userId, emptyList()) }
             .isInstanceOf(CoreException::class.java)
             .hasMessage("주문 항목은 1개 이상이어야 합니다.")
+    }
+
+    @DisplayName("UserId가 같은 주문은 취소할 수 있다.")
+    @Test
+    fun cancelOrderSuccess() {
+        // given
+        val userId = 1L
+        val items = listOf(OrderItemModel.of(1L, "상품", 1000.0, 2))
+        val order = OrderModel.of(userId, items)
+
+        // when
+        order.cancel(userId)
+
+        // then
+        assertThat(order.status).isEqualTo(OrderStatus.CANCELLED)
+        assertThat(order.deletedAt).isNotNull
     }
 }
