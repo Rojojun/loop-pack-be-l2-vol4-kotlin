@@ -3,6 +3,8 @@ package com.loopers.domain.user
 import com.loopers.domain.BaseEntity
 import com.loopers.domain.value.BirthVO
 import com.loopers.domain.value.EmailVO
+import com.loopers.support.error.CoreException
+import com.loopers.support.error.ErrorType
 import com.loopers.support.security.PasswordEncoder
 import com.loopers.support.security.PasswordMatcher
 import jakarta.persistence.Embedded
@@ -39,6 +41,13 @@ class UserModel(
 
     fun changePassword(encrypted: String?) {
         this.password = encrypted ?: throw IllegalArgumentException()
+    }
+
+    /** 요청자가 본인인지 검증한다. 본인이 아니면 FORBIDDEN. */
+    fun validateSelf(userId: Long) {
+        if (this.id != userId) {
+            throw CoreException(ErrorType.FORBIDDEN, "본인만 접근할 수 있습니다.")
+        }
     }
 
     fun validPasswordChange(oldPassword: String, targetPassword: String, matcher: PasswordMatcher) {

@@ -4,8 +4,6 @@ import com.loopers.domain.like.LikeService
 import com.loopers.domain.like.ProductId
 import com.loopers.domain.product.ProductService
 import com.loopers.domain.user.UserService
-import com.loopers.support.error.CoreException
-import com.loopers.support.error.ErrorType
 import org.springframework.stereotype.Component
 
 @Component
@@ -35,9 +33,7 @@ class LikeFacade(
 
     fun findLikes(requestLoginId: String, pathUserId: Long): List<LikedProductInfo> {
         val user = userService.getByLoginId(requestLoginId)
-        if (user.id != pathUserId) {
-            throw CoreException(ErrorType.FORBIDDEN, "로그인한 유저의 아이디가 다릅니다.")
-        }
+        user.validateSelf(pathUserId)
 
         val likes = likeService.getLikeByUserId(user.id).filter { it.available() }
         val productIds = likes.map { like -> like.productId }
