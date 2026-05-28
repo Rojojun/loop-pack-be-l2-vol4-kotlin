@@ -32,8 +32,13 @@ class UserService(
     }
 
     @Transactional(readOnly = true)
+    fun getByLoginId(loginId: String): UserModel =
+        userRepository.findByLoginId(loginId)
+            .orElseThrow { CoreException(ErrorType.NOT_FOUND, "유저의 아이디가 존재하지 않습니다.") }
+
+    @Transactional(readOnly = true)
     fun checkLoginIdDuplication(loginId: String) {
-        check (userRepository.existsByLoginId(loginId)) {
+        if (userRepository.existsByLoginId(loginId)) {
             throw CoreException(ErrorType.BAD_REQUEST, "이미 존재하는 유저의 아이디입니다.")
         }
     }
