@@ -55,6 +55,7 @@ class OrderFacade(
         }
     }
 
+    @Transactional(readOnly = true)
     fun getOrder(loginId: String, orderId: Long): OrderDetailInfo {
         val user = userService.getByLoginId(loginId)
         val order = orderService.getOrder(orderId)

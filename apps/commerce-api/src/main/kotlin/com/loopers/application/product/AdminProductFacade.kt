@@ -23,8 +23,6 @@ class AdminProductFacade(
         val stockModels = stockService.getStocksByProductId(productModelIds)
         val likeCounters = likeService.getLikeCountGroupByProductId(productModelIds)
 
-        ProductDomainService.assemble(productModels, stockModels, likeCounters)
-
         return ProductDomainService.assemble(productModels, stockModels, likeCounters)
             .map { AdminProductInfo.from(it) }
     }
