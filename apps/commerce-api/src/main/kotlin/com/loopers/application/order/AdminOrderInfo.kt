@@ -1,21 +1,22 @@
 package com.loopers.application.order
 
-import java.time.LocalDateTime
+import com.loopers.domain.order.OrderStatus
+import java.time.ZonedDateTime
 
 data class AdminOrderSummaryInfo(
     val orderId: Long,
     val userId: Long,
-    val totalAmount: Int,
-    val status: String,
-    val orderedAt: LocalDateTime,
+    val totalPrice: Double,
+    val status: OrderStatus,
+    val orderedAt: ZonedDateTime,
     val itemCount: Int,
 )
 
 data class AdminOrderDetailInfo(
     val orderId: Long,
     val userId: Long,
-    val totalAmount: Int,
-    val status: String,
-    val orderedAt: LocalDateTime,
+    val totalPrice: Double,
+    val status: OrderStatus,
+    val orderedAt: ZonedDateTime,
     val items: List<OrderItemInfo>,
 )

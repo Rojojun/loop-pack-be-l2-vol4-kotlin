@@ -28,7 +28,8 @@ class OrderModel private constructor (
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "order", cascade = [CascadeType.ALL], orphanRemoval = true)
     private val orderItem: MutableList<OrderItemModel> = mutableListOf()
 
-    fun cancel() {
+    fun cancel(userId: Long) {
+        this.ensure(OrderOwnedBy(userId))
         this.ensure(OrderIsCancellable)
         this.status = OrderStatus.CANCELLED
         this.delete()
@@ -37,6 +38,10 @@ class OrderModel private constructor (
 
     val items: List<OrderItemModel>
         get() = orderItem.toList()
+
+    fun totalPrice(): Double = orderItem.sumOf { it.totalPrice() }
+
+    fun validateOwnedBy(userId: Long) = this.ensure(OrderOwnedBy(userId))
 
     private fun addItem(item: OrderItemModel) =
         item.also { orderItem.add(it) }

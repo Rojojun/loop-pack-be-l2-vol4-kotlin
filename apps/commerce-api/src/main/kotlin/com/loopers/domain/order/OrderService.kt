@@ -1,10 +1,11 @@
 package com.loopers.domain.order
 
-import com.loopers.support.error.CoreException
-import com.loopers.support.error.ErrorType
 import com.loopers.support.function.orThrowNotFound
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
+import java.time.ZonedDateTime
 
 @Transactional
 @Component
@@ -18,6 +19,14 @@ class OrderService(
     fun deleteOrder(orderId: Long, userId: Long) =
         orderRepository.findByIdOrNull(orderId)
             .orThrowNotFound("해당하는 주문이 존재하지 않습니다.")
-            .also { if(it.userId != userId) { throw CoreException(ErrorType.BAD_REQUEST, "해당하는 유저의 주문이 아닙니다.")} }
-            .cancel()
+            .cancel(userId)
+
+    fun getOrders(startAt: ZonedDateTime, endAt: ZonedDateTime) =
+        orderRepository.findByOrderedAtBetween(startAt, endAt)
+
+    fun getOrder(orderId: Long) = orderRepository.findByIdOrNull(orderId) orThrowNotFound "해당하는 주문이 존재하지 않습니다."
+
+    fun findAll(pageable: Pageable): Page<OrderModel> {
+        return orderRepository.findAll(pageable)
+    }
 }
