@@ -1,5 +1,6 @@
 package com.loopers.infrastructure.product
 
+import com.loopers.domain.like.QLikeModel.likeModel
 import com.loopers.domain.product.Level
 import com.loopers.domain.product.ProductModel
 import com.loopers.domain.product.QProductModel.productModel
@@ -31,8 +32,26 @@ class ProductQueryRepository(
             isLevelEq(level)
         )
 
-        val content = basePagingQuery(pageable, *conditions)
-            .fetch()
+        val content = when (sort) {
+            "likes_desc" -> jpaQueryFactory.selectFrom(productModel)
+                .leftJoin(likeModel).on(
+                    likeModel.productId.eq(productModel.id).and(likeModel.deletedAt.isNull),
+                )
+                .where(*conditions)
+                .groupBy(productModel.id)
+                .orderBy(likeModel.count().desc(), productModel.id.desc())
+                .offset(pageable.offset)
+                .limit(pageable.pageSize.toLong())
+                .fetch()
+
+            "price_asc" -> basePagingQuery(pageable, *conditions)
+                .orderBy(productModel.price.asc(), productModel.id.desc())
+                .fetch()
+
+            else -> basePagingQuery(pageable, *conditions)
+                .orderBy(productModel.createdAt.desc())
+                .fetch()
+        }
         val countQuery = baseCountingQuery(*conditions)
 
         return PageableExecutionUtils.getPage(content, pageable) { countQuery.fetchOne() ?: 0L }
