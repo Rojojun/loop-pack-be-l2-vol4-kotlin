@@ -25,6 +25,10 @@ class LikeModel private constructor(
         return deletedAt == null
     }
 
+    fun like() {
+        restore()
+    }
+
     companion object {
         fun of(userId: Long, productId: Long) =
             LikeModel(userId, productId, ZonedDateTime.now())

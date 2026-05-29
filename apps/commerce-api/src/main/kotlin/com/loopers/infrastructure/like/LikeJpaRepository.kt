@@ -10,6 +10,7 @@ interface LikeJpaRepository : JpaRepository<LikeModel, Long> {
 
     fun existsByUserIdAndProductId(userId: Long, productId: Long): Boolean
 
-    fun findByUserIdAndProductId(userId: Long, productId: Long): List<LikeModel>
+    fun findByUserIdAndProductId(userId: Long, productId: Long): LikeModel?
+
     fun findAllByUserId(userId: Long): MutableList<LikeModel>
 }

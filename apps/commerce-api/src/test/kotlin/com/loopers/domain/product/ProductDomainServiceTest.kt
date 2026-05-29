@@ -17,6 +17,8 @@ import org.springframework.data.domain.PageRequest
 
 internal class ProductDomainServiceTest {
 
+    private val productDomainService = ProductDomainService()
+
     private fun assignId(entity: BaseEntity, id: Long): BaseEntity {
         val idField = BaseEntity::class.java.getDeclaredField("id")
         idField.isAccessible = true
@@ -74,7 +76,7 @@ internal class ProductDomainServiceTest {
             )
 
             // when
-            val result = ProductDomainService.assemble(productPage, brands, likeCounts, stocks)
+            val result = productDomainService.assemble(productPage, brands, likeCounts, stocks)
 
             // then
             val domains = result.content
@@ -105,7 +107,7 @@ internal class ProductDomainServiceTest {
             val stocks = mapOf(ProductId(1L) to stock(1L, 7))
 
             // when
-            val result = ProductDomainService.assemble(productPage, brands, likeCounts, stocks)
+            val result = productDomainService.assemble(productPage, brands, likeCounts, stocks)
 
             // then
             assertThat(result.content[0].likeCount).isEqualTo(0)
@@ -121,7 +123,7 @@ internal class ProductDomainServiceTest {
             val likeCounts = mapOf(ProductId(1L) to LikeCount(2))
             val stocks = mapOf(ProductId(1L) to stock(1L, 0))
 
-            val domain = ProductDomainService.assemble(productPage, brands, likeCounts, stocks).content[0]
+            val domain = productDomainService.assemble(productPage, brands, likeCounts, stocks).content[0]
 
             // when
             val info = ProductInfo.of(domain)
@@ -145,7 +147,7 @@ internal class ProductDomainServiceTest {
             val stocks = mapOf(ProductId(1L) to stock(1L, 1))
 
             // when then
-            assertThatThrownBy { ProductDomainService.assemble(productPage, brands, likeCounts, stocks) }
+            assertThatThrownBy { productDomainService.assemble(productPage, brands, likeCounts, stocks) }
                 .isInstanceOf(CoreException::class.java)
                 .hasMessage("등록되지 않은 브랜드입니다.")
         }
@@ -161,7 +163,7 @@ internal class ProductDomainServiceTest {
             val stocks = emptyMap<ProductId, StockModel>()
 
             // when then
-            assertThatThrownBy { ProductDomainService.assemble(productPage, brands, likeCounts, stocks) }
+            assertThatThrownBy { productDomainService.assemble(productPage, brands, likeCounts, stocks) }
                 .isInstanceOf(CoreException::class.java)
                 .hasMessage("등록되지 않은 재고입니다.")
         }
@@ -181,7 +183,7 @@ internal class ProductDomainServiceTest {
             val likeCounts = mapOf(ProductId(1L) to LikeCount(8))
 
             // when
-            val result = ProductDomainService.assemble(productPage, stocks, likeCounts)
+            val result = productDomainService.assemble(productPage, stocks, likeCounts)
 
             // then
             val domain = result.content[0]
@@ -202,7 +204,7 @@ internal class ProductDomainServiceTest {
             val likeCounts = emptyMap<ProductId, LikeCount>()
 
             // when
-            val result = ProductDomainService.assemble(productPage, stocks, likeCounts)
+            val result = productDomainService.assemble(productPage, stocks, likeCounts)
 
             // then
             assertThat(result.content[0].likeCount).isEqualTo(0)
@@ -218,7 +220,7 @@ internal class ProductDomainServiceTest {
             val likeCounts = mapOf(ProductId(1L) to LikeCount(1))
 
             // when then
-            assertThatThrownBy { ProductDomainService.assemble(productPage, stocks, likeCounts) }
+            assertThatThrownBy { productDomainService.assemble(productPage, stocks, likeCounts) }
                 .isInstanceOf(CoreException::class.java)
                 .hasMessage("등록되지 않은 재고입니다.")
         }

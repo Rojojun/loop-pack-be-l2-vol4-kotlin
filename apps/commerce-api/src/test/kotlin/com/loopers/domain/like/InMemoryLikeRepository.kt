@@ -7,7 +7,7 @@ import com.loopers.domain.BaseEntity
  *
  * 운영 JPA 동작을 충실히 반영한다: existsByUserIdAndProductId / findByUserIdAndProductId 는
  * 글로벌 soft-delete 필터(@SQLRestriction)가 없는 운영과 동일하게 deletedAt 여부를 무시하고
- * 전체 row 를 대상으로 한다. (덕분에 soft-delete 후 재등록 등 멱등성 결함이 테스트로 그대로 재현된다.)
+ * 전체 row 를 대상으로 한다. (soft-delete 된 row 도 찾아내므로 재등록 시 restore 기반 멱등이 검증된다.)
  * id 부여는 기존 InMemory*Repository 템플릿과 동일하게 BaseEntity 의 id 필드를 리플렉션으로 세팅한다.
  */
 class InMemoryLikeRepository : LikeRepository {
@@ -37,8 +37,8 @@ class InMemoryLikeRepository : LikeRepository {
     override fun existsByUserIdAndProductId(userId: Long, productId: Long): Boolean =
         data.values.any { it.userId == userId && it.productId == productId }
 
-    override fun findByUserIdAndProductId(userId: Long, productId: Long): List<LikeModel> =
-        data.values.filter { it.userId == userId && it.productId == productId }
+    override fun findByUserIdAndProductId(userId: Long, productId: Long): LikeModel? =
+        data.values.firstOrNull { it.userId == userId && it.productId == productId }
 
     override fun findAllByUserId(userId: Long): List<LikeModel> =
         data.values.filter { it.userId == userId }

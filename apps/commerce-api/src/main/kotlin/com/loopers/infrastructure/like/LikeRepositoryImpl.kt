@@ -20,7 +20,7 @@ class LikeRepositoryImpl(
     override fun save(likeModel: LikeModel): LikeModel =
         likeJpaRepository.save(likeModel)
 
-    override fun findByUserIdAndProductId(userId: Long, productId: Long): List<LikeModel> =
+    override fun findByUserIdAndProductId(userId: Long, productId: Long): LikeModel? =
         likeJpaRepository.findByUserIdAndProductId(userId, productId)
 
     override fun findAllByUserId(userId: Long): List<LikeModel> =

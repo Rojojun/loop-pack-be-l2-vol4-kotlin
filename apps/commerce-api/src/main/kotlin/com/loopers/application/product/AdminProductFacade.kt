@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional
 @Component
 class AdminProductFacade(
     private val productService: ProductService,
+    private val productDomainService: ProductDomainService,
     private val stockService: StockService,
     private val likeService: LikeService,
 ) {
@@ -24,7 +25,7 @@ class AdminProductFacade(
         val stockModels = stockService.getStocksByProductId(productModelIds)
         val likeCounters = likeService.getLikeCountGroupByProductId(productModelIds)
 
-        return ProductDomainService.assemble(productModels, stockModels, likeCounters)
+        return productDomainService.assemble(productModels, stockModels, likeCounters)
             .map { AdminProductInfo.of(it) }
     }
 
@@ -33,7 +34,7 @@ class AdminProductFacade(
         val stock = stockService.getStockById(productId)
         val likeCount = likeService.getLikeCount(stock.productId)
 
-        val productDomain = ProductDomainService.getProductDomainForAdmin(product, stock, likeCount)
+        val productDomain = productDomainService.getProductDomainForAdmin(product, stock, likeCount)
 
         return AdminProductInfo.of(productDomain)
     }

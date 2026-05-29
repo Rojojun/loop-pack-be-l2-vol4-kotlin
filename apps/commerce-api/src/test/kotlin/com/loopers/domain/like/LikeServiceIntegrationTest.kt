@@ -41,8 +41,8 @@ internal class LikeServiceIntegrationTest @Autowired constructor(
 
         // then : 새 조회 시 soft delete(deletedAt) 가 반영되어 available == false
         val found = likeRepository.findByUserIdAndProductId(userId, productId)
-        assertThat(found).hasSize(1)
-        assertThat(found.first().available()).isFalse
+        assertThat(found).isNotNull
+        assertThat(found!!.available()).isFalse
     }
 
     @DisplayName("좋아요 취소 후 재등록하면 새 row 가 아니라 기존 row 가 복구된다. (restore 영속화)")
@@ -57,11 +57,11 @@ internal class LikeServiceIntegrationTest @Autowired constructor(
         // when : 재등록 → restore
         val reAdded = likeService.addLike(userId, productId)
 
-        // then : 같은 row 가 복구되어 1개만 존재하고 available == true
+        // then : 같은 row 가 복구되어 available == true
         assertThat(reAdded).isTrue
         val found = likeRepository.findByUserIdAndProductId(userId, productId)
-        assertThat(found).hasSize(1)
-        assertThat(found.first().available()).isTrue
+        assertThat(found).isNotNull
+        assertThat(found!!.available()).isTrue
     }
 
     @DisplayName("좋아요 취소가 영속화되어 getLikeCount 에 반영된다.")

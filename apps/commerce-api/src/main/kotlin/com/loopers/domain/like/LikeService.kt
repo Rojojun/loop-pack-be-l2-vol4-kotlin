@@ -23,31 +23,19 @@ class LikeService(
     }
 
     fun addLike(userId: Long, productId: Long): Boolean {
-        val likeModel = LikeModel.of(userId, productId)
-        val existLike = likeRepository.findByUserIdAndProductId(userId, productId).firstOrNull()
+        val existValue = likeRepository.findByUserIdAndProductId(userId, productId)
+        val likeModel = existValue ?: LikeModel.of(userId, productId)
+        val isNewLikeModel = existValue == null || !existValue.available()
 
-        return when {
-            existLike == null -> {
-                likeRepository.save(likeModel)
-                true
-            }
-            existLike.available() -> false
-            else -> {
-                existLike.restore()
-                true
-            }
-        }
+        likeModel.like()
+        likeRepository.save(likeModel)
+
+        return isNewLikeModel
     }
 
     fun remove(userId: Long, productId: Long) {
-        val likeModel = likeRepository.findByUserIdAndProductId(userId, productId)
-        if (likeModel.isEmpty()) {
-            return
-        }
-        if (likeModel.size != 1) {
-            return
-        }
-        likeModel.first().delete()
+        val likeModel = likeRepository.findByUserIdAndProductId(userId, productId) ?: return
+        likeModel.delete()
     }
 
     fun getLikeByUserId(userId: Long): List<LikeModel> {
