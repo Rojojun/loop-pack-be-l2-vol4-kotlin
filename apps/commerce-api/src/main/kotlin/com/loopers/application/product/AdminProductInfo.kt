@@ -20,7 +20,7 @@ data class AdminProductInfo private constructor (
     val status: ProductStatus,
 ) {
     companion object {
-        fun from(productDomain: ProductDomain) = AdminProductInfo(
+        fun of(productDomain: ProductDomain) = AdminProductInfo(
             productId = productDomain.productId,
             brandId = productDomain.brandId,
             isbn = productDomain.isbn,

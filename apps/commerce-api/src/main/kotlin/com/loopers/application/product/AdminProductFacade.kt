@@ -9,6 +9,7 @@ import com.loopers.domain.stock.StockService
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Transactional
 
 @Component
 class AdminProductFacade(
@@ -24,7 +25,7 @@ class AdminProductFacade(
         val likeCounters = likeService.getLikeCountGroupByProductId(productModelIds)
 
         return ProductDomainService.assemble(productModels, stockModels, likeCounters)
-            .map { AdminProductInfo.from(it) }
+            .map { AdminProductInfo.of(it) }
     }
 
     fun getProduct(productId: Long): AdminProductInfo {
@@ -34,9 +35,10 @@ class AdminProductFacade(
 
         val productDomain = ProductDomainService.getProductDomainForAdmin(product, stock, likeCount)
 
-        return AdminProductInfo.from(productDomain)
+        return AdminProductInfo.of(productDomain)
     }
 
+    @Transactional
     fun createProduct(
         brandId: Long,
         isbn: String,
