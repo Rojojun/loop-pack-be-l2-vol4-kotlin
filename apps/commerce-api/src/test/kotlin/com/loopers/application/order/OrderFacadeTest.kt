@@ -1,7 +1,6 @@
 package com.loopers.application.order
 
 import com.loopers.domain.order.InMemoryOrderRepository
-import com.loopers.domain.order.OrderDomainService
 import com.loopers.domain.order.OrderItemModel
 import com.loopers.domain.order.OrderService
 import com.loopers.domain.product.InMemoryProductRepository
@@ -43,7 +42,6 @@ internal class OrderFacadeTest {
         stockService = stockService,
         productService = productService,
         userService = userService,
-        orderDomainService = OrderDomainService(),
     )
 
     private fun saveUser(loginId: String = "testId"): UserModel =

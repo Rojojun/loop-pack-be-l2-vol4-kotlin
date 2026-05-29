@@ -12,12 +12,8 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.springframework.data.domain.PageImpl
-import org.springframework.data.domain.PageRequest
 
 internal class ProductDomainServiceTest {
-
-    private val productDomainService = ProductDomainService()
 
     private fun assignId(entity: BaseEntity, id: Long): BaseEntity {
         val idField = BaseEntity::class.java.getDeclaredField("id")
@@ -50,17 +46,16 @@ internal class ProductDomainServiceTest {
 
     private fun stock(productId: Long, quantity: Int): StockModel = StockModel.of(productId, quantity)
 
-    @DisplayName("사용자용 assemble 은")
+    @DisplayName("사용자용 assembleForUser 는")
     @Nested
     internal inner class AssembleForUser {
 
-        @DisplayName("브랜드명/좋아요수/품절여부를 조립한 ProductDomain 페이지를 반환한다.")
+        @DisplayName("브랜드명/좋아요수/품절여부를 조립한 ProductDomain 을 반환한다.")
         @Test
         fun assembleUserDomain() {
             // given
             val product1 = product(id = 1L, brandId = 10L, name = "코틀린인액션")
             val product2 = product(id = 2L, brandId = 20L, name = "이펙티브코틀린")
-            val productPage = PageImpl(listOf(product1, product2), PageRequest.of(0, 10), 2)
 
             val brands = mapOf(
                 10L to brand(10L, "한빛미디어"),
@@ -76,20 +71,16 @@ internal class ProductDomainServiceTest {
             )
 
             // when
-            val result = productDomainService.assemble(productPage, brands, likeCounts, stocks)
+            val first = assembleForUser(product1, brands, likeCounts, stocks)
+            val second = assembleForUser(product2, brands, likeCounts, stocks)
 
             // then
-            val domains = result.content
-            assertThat(domains).hasSize(2)
-
-            val first = domains[0]
             assertThat(first.productId).isEqualTo(1L)
             assertThat(first.brandName).isEqualTo("한빛미디어")
             assertThat(first.likeCount).isEqualTo(5)
             assertThat(first.stockQuantity).isEqualTo(3)
             assertThat(first.soldOut).isFalse()
 
-            val second = domains[1]
             assertThat(second.brandName).isEqualTo("인사이트")
             assertThat(second.likeCount).isEqualTo(0)
             assertThat(second.stockQuantity).isEqualTo(0)
@@ -101,16 +92,15 @@ internal class ProductDomainServiceTest {
         fun likeCountDefaultsToZero() {
             // given
             val product1 = product(id = 1L, brandId = 10L, name = "코틀린인액션")
-            val productPage = PageImpl(listOf(product1), PageRequest.of(0, 10), 1)
             val brands = mapOf(10L to brand(10L, "한빛미디어"))
             val likeCounts = emptyMap<ProductId, LikeCount>()
             val stocks = mapOf(ProductId(1L) to stock(1L, 7))
 
             // when
-            val result = productDomainService.assemble(productPage, brands, likeCounts, stocks)
+            val domain = assembleForUser(product1, brands, likeCounts, stocks)
 
             // then
-            assertThat(result.content[0].likeCount).isEqualTo(0)
+            assertThat(domain.likeCount).isEqualTo(0)
         }
 
         @DisplayName("조립된 ProductDomain 은 ProductInfo.of 로 변환된다.")
@@ -118,12 +108,11 @@ internal class ProductDomainServiceTest {
         fun convertToProductInfo() {
             // given
             val product1 = product(id = 1L, brandId = 10L, name = "코틀린인액션")
-            val productPage = PageImpl(listOf(product1), PageRequest.of(0, 10), 1)
             val brands = mapOf(10L to brand(10L, "한빛미디어"))
             val likeCounts = mapOf(ProductId(1L) to LikeCount(2))
             val stocks = mapOf(ProductId(1L) to stock(1L, 0))
 
-            val domain = productDomainService.assemble(productPage, brands, likeCounts, stocks).content[0]
+            val domain = assembleForUser(product1, brands, likeCounts, stocks)
 
             // when
             val info = ProductInfo.of(domain)
@@ -136,40 +125,38 @@ internal class ProductDomainServiceTest {
             assertThat(info.soldOut).isTrue()
         }
 
-        @DisplayName("등록되지 않은 브랜드가 있으면 NOT_FOUND 예외를 던진다.")
+        @DisplayName("등록되지 않은 브랜드면 NOT_FOUND 예외를 던진다.")
         @Test
         fun throwWhenBrandMissing() {
             // given
             val product1 = product(id = 1L, brandId = 99L, name = "코틀린인액션")
-            val productPage = PageImpl(listOf(product1), PageRequest.of(0, 10), 1)
             val brands = emptyMap<Long, BrandModel>()
             val likeCounts = mapOf(ProductId(1L) to LikeCount(1))
             val stocks = mapOf(ProductId(1L) to stock(1L, 1))
 
             // when then
-            assertThatThrownBy { productDomainService.assemble(productPage, brands, likeCounts, stocks) }
+            assertThatThrownBy { assembleForUser(product1, brands, likeCounts, stocks) }
                 .isInstanceOf(CoreException::class.java)
                 .hasMessage("등록되지 않은 브랜드입니다.")
         }
 
-        @DisplayName("등록되지 않은 재고가 있으면 NOT_FOUND 예외를 던진다.")
+        @DisplayName("등록되지 않은 재고면 NOT_FOUND 예외를 던진다.")
         @Test
         fun throwWhenStockMissing() {
             // given
             val product1 = product(id = 1L, brandId = 10L, name = "코틀린인액션")
-            val productPage = PageImpl(listOf(product1), PageRequest.of(0, 10), 1)
             val brands = mapOf(10L to brand(10L, "한빛미디어"))
             val likeCounts = mapOf(ProductId(1L) to LikeCount(1))
             val stocks = emptyMap<ProductId, StockModel>()
 
             // when then
-            assertThatThrownBy { productDomainService.assemble(productPage, brands, likeCounts, stocks) }
+            assertThatThrownBy { assembleForUser(product1, brands, likeCounts, stocks) }
                 .isInstanceOf(CoreException::class.java)
                 .hasMessage("등록되지 않은 재고입니다.")
         }
     }
 
-    @DisplayName("관리자용 assemble 은")
+    @DisplayName("관리자용 assembleForAdmin 은")
     @Nested
     internal inner class AssembleForAdmin {
 
@@ -178,15 +165,13 @@ internal class ProductDomainServiceTest {
         fun assembleAdminDomain() {
             // given
             val product1 = product(id = 1L, brandId = 10L, name = "코틀린인액션")
-            val productPage = PageImpl(listOf(product1), PageRequest.of(0, 10), 1)
             val stocks = mapOf(ProductId(1L) to stock(1L, 4))
             val likeCounts = mapOf(ProductId(1L) to LikeCount(8))
 
             // when
-            val result = productDomainService.assemble(productPage, stocks, likeCounts)
+            val domain = assembleForAdmin(product1, stocks, likeCounts)
 
             // then
-            val domain = result.content[0]
             assertThat(domain.productId).isEqualTo(1L)
             assertThat(domain.stockQuantity).isEqualTo(4)
             assertThat(domain.likeCount).isEqualTo(8)
@@ -199,28 +184,26 @@ internal class ProductDomainServiceTest {
         fun likeCountDefaultsToZero() {
             // given
             val product1 = product(id = 1L, brandId = 10L, name = "코틀린인액션")
-            val productPage = PageImpl(listOf(product1), PageRequest.of(0, 10), 1)
             val stocks = mapOf(ProductId(1L) to stock(1L, 4))
             val likeCounts = emptyMap<ProductId, LikeCount>()
 
             // when
-            val result = productDomainService.assemble(productPage, stocks, likeCounts)
+            val domain = assembleForAdmin(product1, stocks, likeCounts)
 
             // then
-            assertThat(result.content[0].likeCount).isEqualTo(0)
+            assertThat(domain.likeCount).isEqualTo(0)
         }
 
-        @DisplayName("등록되지 않은 재고가 있으면 NOT_FOUND 예외를 던진다.")
+        @DisplayName("등록되지 않은 재고면 NOT_FOUND 예외를 던진다.")
         @Test
         fun throwWhenStockMissing() {
             // given
             val product1 = product(id = 1L, brandId = 10L, name = "코틀린인액션")
-            val productPage = PageImpl(listOf(product1), PageRequest.of(0, 10), 1)
             val stocks = emptyMap<ProductId, StockModel>()
             val likeCounts = mapOf(ProductId(1L) to LikeCount(1))
 
             // when then
-            assertThatThrownBy { productDomainService.assemble(productPage, stocks, likeCounts) }
+            assertThatThrownBy { assembleForAdmin(product1, stocks, likeCounts) }
                 .isInstanceOf(CoreException::class.java)
                 .hasMessage("등록되지 않은 재고입니다.")
         }

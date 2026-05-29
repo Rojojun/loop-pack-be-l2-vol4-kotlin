@@ -2,8 +2,9 @@ package com.loopers.application.product
 
 import com.loopers.domain.like.LikeService
 import com.loopers.domain.product.Level
-import com.loopers.domain.product.ProductDomainService
 import com.loopers.domain.product.ProductService
+import com.loopers.domain.product.assembleForAdmin
+import com.loopers.domain.product.getProductDomainForAdmin
 import com.loopers.domain.product.TechCategory
 import com.loopers.domain.stock.StockService
 import org.springframework.data.domain.Page
@@ -14,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional
 @Component
 class AdminProductFacade(
     private val productService: ProductService,
-    private val productDomainService: ProductDomainService,
     private val stockService: StockService,
     private val likeService: LikeService,
 ) {
@@ -25,7 +25,8 @@ class AdminProductFacade(
         val stockModels = stockService.getStocksByProductId(productModelIds)
         val likeCounters = likeService.getLikeCountGroupByProductId(productModelIds)
 
-        return productDomainService.assemble(productModels, stockModels, likeCounters)
+        return productModels
+            .map { assembleForAdmin(it, stockModels, likeCounters) }
             .map { AdminProductInfo.of(it) }
     }
 
@@ -34,7 +35,7 @@ class AdminProductFacade(
         val stock = stockService.getStockById(productId)
         val likeCount = likeService.getLikeCount(stock.productId)
 
-        val productDomain = productDomainService.getProductDomainForAdmin(product, stock, likeCount)
+        val productDomain = getProductDomainForAdmin(product, stock, likeCount)
 
         return AdminProductInfo.of(productDomain)
     }
