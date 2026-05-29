@@ -6,6 +6,8 @@ import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Table
+import org.hibernate.annotations.SQLRestriction
+import org.springframework.web.bind.annotation.DeleteMapping
 
 @Entity
 @Table(name = "brands")

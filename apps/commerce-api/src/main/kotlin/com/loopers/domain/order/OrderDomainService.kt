@@ -1,8 +1,10 @@
 package com.loopers.domain.order
 
 import com.loopers.domain.product.ProductModel
+import org.springframework.stereotype.Component
 
-object OrderDomainService {
+@Component
+class OrderDomainService {
     fun toOrderItems(
         productQuantityPairs: List<Pair<Long, Int>>,
         productsById: Map<Long, ProductModel>,

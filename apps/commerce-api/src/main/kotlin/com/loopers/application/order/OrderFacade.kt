@@ -16,6 +16,8 @@ class OrderFacade(
     private val stockService: StockService,
     private val productService: ProductService,
     private val userService: UserService,
+
+    private val orderDomainService: OrderDomainService
 ) {
     @Transactional
     fun placeOrder(loginId: String, productQuantityPairs: List<Pair<Long, Int>>): OrderInfo {
@@ -31,7 +33,7 @@ class OrderFacade(
                 .let { stockService.reduceStock(it, quantity) }
         }
 
-        val items = OrderDomainService.toOrderItems(productQuantityPairs, productsById)
+        val items = orderDomainService.toOrderItems(productQuantityPairs, productsById)
         val orderModel = orderService.createOrder(user.id, items)
 
         return OrderInfo(orderModel.id)
