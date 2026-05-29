@@ -5,6 +5,7 @@ import com.loopers.domain.value.BirthVO
 import com.loopers.domain.value.EmailVO
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
+import com.loopers.support.function.ensure
 import com.loopers.support.security.PasswordEncoder
 import com.loopers.support.security.PasswordMatcher
 import jakarta.persistence.Embedded
@@ -40,19 +41,18 @@ class UserModel(
         protected set
 
     fun changePassword(encrypted: String?) {
-        this.password = encrypted ?: throw IllegalArgumentException()
+        this.password = encrypted ?: throw CoreException(ErrorType.BAD_REQUEST, "비밀번호는 비어있을 수 없습니다.")
     }
 
-    /** 요청자가 본인인지 검증한다. 본인이 아니면 FORBIDDEN. */
-    fun validateSelf(userId: Long) {
-        if (this.id != userId) {
-            throw CoreException(ErrorType.FORBIDDEN, "본인만 접근할 수 있습니다.")
-        }
-    }
+    fun validateSelf(userId: Long) = this.ensure(UserIsSelf(userId))
 
     fun validPasswordChange(oldPassword: String, targetPassword: String, matcher: PasswordMatcher) {
-        require(matcher.matches(oldPassword, this.password)) { "비밀번호가 일치하지 않습니다." }
-        require(!matcher.matches(targetPassword, this.password)) { "현재 비밀번호는 사용할 수 없습니다." }
+        if (!matcher.matches(oldPassword, this.password)) {
+            throw CoreException(ErrorType.BAD_REQUEST, "비밀번호가 일치하지 않습니다.")
+        }
+        if (matcher.matches(targetPassword, this.password)) {
+            throw CoreException(ErrorType.BAD_REQUEST, "현재 비밀번호는 사용할 수 없습니다.")
+        }
         validatePassword(targetPassword, this.birth)
     }
 
@@ -67,8 +67,12 @@ class UserModel(
         }
 
         private fun validatePassword(rawPassword: String, birthVO: BirthVO) {
-            require(PATTERN.matcher(rawPassword).matches()) { "비밀번호 생성 규칙 위반 : 8 ~ 16자의 영문 대소문자, 숫자, 특수문자만 가능합니다" }
-            require(!rawPassword.contains(birthVO.toString())) { "비밀번호 생성 규칙 위반 : 생년월일은 비밀번호 내에 포함할 수 없습니다." }
+            if (!PATTERN.matcher(rawPassword).matches()) {
+                throw CoreException(ErrorType.BAD_REQUEST, "비밀번호 생성 규칙 위반 : 8 ~ 16자의 영문 대소문자, 숫자, 특수문자만 가능합니다")
+            }
+            if (rawPassword.contains(birthVO.toString())) {
+                throw CoreException(ErrorType.BAD_REQUEST, "비밀번호 생성 규칙 위반 : 생년월일은 비밀번호 내에 포함할 수 없습니다.")
+            }
         }
     }
 }

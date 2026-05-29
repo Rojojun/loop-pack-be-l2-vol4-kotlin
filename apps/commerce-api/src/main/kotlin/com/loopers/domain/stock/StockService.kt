@@ -1,7 +1,6 @@
 package com.loopers.domain.stock
 
 import com.loopers.domain.like.ProductId
-import com.loopers.domain.product.ProductModel
 import com.loopers.support.function.orThrowNotFound
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
