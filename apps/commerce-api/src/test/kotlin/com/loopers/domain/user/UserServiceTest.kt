@@ -93,7 +93,7 @@ internal class UserServiceTest {
         @DisplayName("존재하지 않는 ID의 경우에 실패한다.")
         @Test
         fun getUserFailureTest() {
-            assertThatThrownBy { userService.getUserModel(2L) }
+            assertThatThrownBy { userService.getUserModel(existSequence + 1L) }
                 .isInstanceOf(CoreException::class.java)
                 .hasMessage("유저의 아이디가 존재하지 않습니다.")
         }
