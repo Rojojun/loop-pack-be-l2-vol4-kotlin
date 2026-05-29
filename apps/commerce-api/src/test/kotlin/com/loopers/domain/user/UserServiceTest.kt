@@ -4,9 +4,8 @@ import com.loopers.domain.value.BirthVO
 import com.loopers.domain.value.EmailVO
 import com.loopers.fixture.UserModelFixture
 import com.loopers.support.error.CoreException
+import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -32,8 +31,8 @@ internal class UserServiceTest {
         ) { it }
 
         // then
-        assertNotNull(result)
-        assertEquals(defaults.loginId, result.loginId)
+        assertThat(result).isNotNull()
+        assertThat(result.loginId).isEqualTo(defaults.loginId)
     }
 
     @DisplayName("유저의 중복체크를 할 때")
@@ -106,8 +105,8 @@ internal class UserServiceTest {
             val userModel = userService.getUserModel(existSequence)
 
             // then
-            assertNotNull(userModel)
-            assertEquals(existSequence, userModel.id)
+            assertThat(userModel).isNotNull()
+            assertThat(userModel.id).isEqualTo(existSequence)
         }
     }
 }

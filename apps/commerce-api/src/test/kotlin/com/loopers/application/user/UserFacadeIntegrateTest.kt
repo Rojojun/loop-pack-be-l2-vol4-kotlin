@@ -178,12 +178,12 @@ internal class UserFacadeIntegrateTest @Autowired constructor(
                 val wrongCurrentPassword = "$currentPassword!"
                 val target = "test_!!34"
                 assertThatThrownBy { userFacade.changePassword(expectedId, wrongCurrentPassword, target) }
-                    .isInstanceOf(IllegalArgumentException::class.java)
+                    .isInstanceOf(CoreException::class.java)
                     .hasMessage("비밀번호가 일치하지 않습니다.")
             },
             DynamicTest.dynamicTest("현재비밀번호와 파라미터로 받은 변경비밀번호가 일치하면 오류가 발생하다") {
                 assertThatThrownBy { userFacade.changePassword(expectedId, currentPassword, currentPassword) }
-                    .isInstanceOf(IllegalArgumentException::class.java)
+                    .isInstanceOf(CoreException::class.java)
                     .hasMessage("현재 비밀번호는 사용할 수 없습니다.")
             },
         )

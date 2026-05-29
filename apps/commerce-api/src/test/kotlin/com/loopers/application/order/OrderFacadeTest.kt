@@ -1,6 +1,7 @@
 package com.loopers.application.order
 
 import com.loopers.domain.order.InMemoryOrderRepository
+import com.loopers.domain.order.OrderItemModel
 import com.loopers.domain.order.OrderService
 import com.loopers.domain.product.InMemoryProductRepository
 import com.loopers.domain.product.Level
@@ -19,13 +20,13 @@ import com.loopers.domain.value.EmailVO
 import com.loopers.support.error.CoreException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import java.time.LocalDate
+import java.time.ZonedDateTime
 
-class OrderFacadeTest {
+internal class OrderFacadeTest {
     private val inMemoryUserRepository = InMemoryUserRepository()
     private val inMemoryOrderRepository = InMemoryOrderRepository()
     private val inMemoryProductRepository = InMemoryProductRepository()
@@ -97,9 +98,9 @@ class OrderFacadeTest {
             val orderInfo = orderFacade.placeOrder(user.loginId, pairs)
 
             // then
-            assertNotNull(orderInfo)
+            assertThat(orderInfo).isNotNull()
             val savedOrder = inMemoryOrderRepository.findByIdOrNull(orderInfo.orderId)
-            assertNotNull(savedOrder)
+            assertThat(savedOrder).isNotNull()
             assertThat(savedOrder!!.userId).isEqualTo(user.id)
             assertThat(savedOrder.items).hasSize(2)
             assertThat(savedOrder.totalPrice()).isEqualTo(1000.0 * 2 + 2000.0 * 3)
@@ -189,6 +190,97 @@ class OrderFacadeTest {
             assertThatThrownBy { orderFacade.placeOrder(user.loginId, pairs) }
                 .isInstanceOf(CoreException::class.java)
                 .hasMessage("재고 정보를 찾을 수 없습니다 : ${product.id}")
+        }
+    }
+
+    @DisplayName("findOrders 는")
+    @Nested
+    internal inner class FindOrders {
+        @DisplayName("본인 주문 목록을 기간 내에서 조회한다.")
+        @Test
+        fun success() {
+            // given
+            val user = saveUser()
+            orderService.createOrder(user.id, listOf(OrderItemModel.of(1L, "상품A", 1000.0, 2)))
+            orderService.createOrder(user.id, listOf(OrderItemModel.of(2L, "상품B", 2000.0, 1)))
+
+            // when
+            val result = orderFacade.findOrders(
+                user.loginId,
+                ZonedDateTime.now().minusDays(1),
+                ZonedDateTime.now().plusDays(1),
+            )
+
+            // then
+            assertThat(result).hasSize(2)
+            assertThat(result.map { it.totalPrice }).containsExactlyInAnyOrder(2000.0, 2000.0)
+        }
+
+        @DisplayName("기간 내에 타인 주문이 섞여 있으면 FORBIDDEN CoreException 을 던진다.")
+        @Test
+        fun forbiddenWhenOthersOrderIncluded() {
+            // given
+            val me = saveUser("me")
+            val other = saveUser("other")
+            orderService.createOrder(me.id, listOf(OrderItemModel.of(1L, "상품A", 1000.0, 1)))
+            orderService.createOrder(other.id, listOf(OrderItemModel.of(2L, "상품B", 2000.0, 1)))
+
+            // when then
+            assertThatThrownBy {
+                orderFacade.findOrders(
+                    me.loginId,
+                    ZonedDateTime.now().minusDays(1),
+                    ZonedDateTime.now().plusDays(1),
+                )
+            }
+                .isInstanceOf(CoreException::class.java)
+                .hasMessage("본인의 주문만 접근할 수 있습니다.")
+        }
+    }
+
+    @DisplayName("getOrder 는")
+    @Nested
+    internal inner class GetOrder {
+        @DisplayName("본인 주문의 상세를 반환한다.")
+        @Test
+        fun success() {
+            // given
+            val user = saveUser()
+            val order = orderService.createOrder(user.id, listOf(OrderItemModel.of(1L, "상품A", 1000.0, 2)))
+
+            // when
+            val detail = orderFacade.getOrder(user.loginId, order.id)
+
+            // then
+            assertThat(detail.orderId).isEqualTo(order.id)
+            assertThat(detail.items).hasSize(1)
+            assertThat(detail.totalPrice).isEqualTo(2000.0)
+        }
+
+        @DisplayName("타인 주문을 조회하면 FORBIDDEN CoreException 을 던진다.")
+        @Test
+        fun forbiddenWhenOthersOrder() {
+            // given
+            val me = saveUser("me")
+            val other = saveUser("other")
+            val othersOrder = orderService.createOrder(other.id, listOf(OrderItemModel.of(1L, "상품A", 1000.0, 1)))
+
+            // when then
+            assertThatThrownBy { orderFacade.getOrder(me.loginId, othersOrder.id) }
+                .isInstanceOf(CoreException::class.java)
+                .hasMessage("본인의 주문만 접근할 수 있습니다.")
+        }
+
+        @DisplayName("존재하지 않는 주문이면 NOT_FOUND CoreException 을 던진다.")
+        @Test
+        fun notFound() {
+            // given
+            val user = saveUser()
+
+            // when then
+            assertThatThrownBy { orderFacade.getOrder(user.loginId, 999L) }
+                .isInstanceOf(CoreException::class.java)
+                .hasMessage("해당하는 주문이 존재하지 않습니다.")
         }
     }
 }

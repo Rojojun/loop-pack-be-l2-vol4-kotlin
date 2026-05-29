@@ -4,9 +4,6 @@ import com.loopers.fixture.BrandModelFixture
 import com.loopers.support.error.CoreException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -29,9 +26,9 @@ internal class BrandServiceTest {
             val result = brandService.createBrandModel(defaults.name)
 
             // then
-            assertNotNull(result)
-            assertEquals(defaults.name, result.name)
-            assertEquals(BrandStatus.ACTIVE, result.status)
+            assertThat(result).isNotNull()
+            assertThat(result.name).isEqualTo(defaults.name)
+            assertThat(result.status).isEqualTo(BrandStatus.ACTIVE)
         }
     }
 
@@ -53,8 +50,8 @@ internal class BrandServiceTest {
             val result = brandService.getBrand(existId)
 
             // then
-            assertNotNull(result)
-            assertEquals(existId, result.id)
+            assertThat(result).isNotNull()
+            assertThat(result.id).isEqualTo(existId)
         }
 
         @DisplayName("존재하지 않는 ID라면 NOT_FOUND 예외를 던진다.")
@@ -80,8 +77,8 @@ internal class BrandServiceTest {
             val result = brandService.getBrandActive(saved.id)
 
             // then
-            assertNotNull(result)
-            assertEquals(BrandStatus.ACTIVE, result.status)
+            assertThat(result).isNotNull()
+            assertThat(result.status).isEqualTo(BrandStatus.ACTIVE)
         }
 
         @DisplayName("CLOSED 상태의 브랜드는 BAD_REQUEST 예외를 던진다.")
@@ -131,8 +128,8 @@ internal class BrandServiceTest {
             val result = brandService.updateBrand(existId, "수정후이름")
 
             // then
-            assertEquals("수정후이름", result.name)
-            assertEquals("수정후이름", brandService.getBrand(existId).name)
+            assertThat(result.name).isEqualTo("수정후이름")
+            assertThat(brandService.getBrand(existId).name).isEqualTo("수정후이름")
         }
 
         @DisplayName("존재하지 않는 브랜드를 수정하면 NOT_FOUND 예외를 던진다.")
@@ -161,15 +158,15 @@ internal class BrandServiceTest {
         fun deleteSuccess() {
             // given
             val before = brandService.getBrand(existId)
-            assertNull(before.deletedAt)
+            assertThat(before.deletedAt).isNull()
 
             // when
             brandService.delete(existId)
 
             // then
             val after = brandService.getBrand(existId)
-            assertNotNull(after.deletedAt)
-            assertEquals(BrandStatus.DELETED, after.status)
+            assertThat(after.deletedAt).isNotNull()
+            assertThat(after.status).isEqualTo(BrandStatus.DELETED)
         }
 
         @DisplayName("존재하지 않는 브랜드를 삭제하면 NOT_FOUND 예외를 던진다.")
@@ -201,9 +198,9 @@ internal class BrandServiceTest {
             val result = brandService.getBrandsByIds(listOf(firstId, secondId))
 
             // then
-            assertEquals(2, result.size)
-            assertEquals("브랜드1", result[firstId]?.name)
-            assertEquals("브랜드2", result[secondId]?.name)
+            assertThat(result).hasSize(2)
+            assertThat(result[firstId]?.name).isEqualTo("브랜드1")
+            assertThat(result[secondId]?.name).isEqualTo("브랜드2")
         }
 
         @DisplayName("존재하지 않는 ID는 결과 Map에 포함되지 않는다.")
@@ -213,9 +210,9 @@ internal class BrandServiceTest {
             val result = brandService.getBrandsByIds(listOf(firstId, 999L))
 
             // then
-            assertEquals(1, result.size)
+            assertThat(result).hasSize(1)
             assertThat(result.keys).containsExactly(firstId)
-            assertNull(result[999L])
+            assertThat(result[999L]).isNull()
         }
 
         @DisplayName("빈 ID 목록을 넘기면 빈 Map을 반환한다.")

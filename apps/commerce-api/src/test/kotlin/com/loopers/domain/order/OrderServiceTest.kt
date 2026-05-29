@@ -1,7 +1,7 @@
 package com.loopers.domain.order
 
 import com.loopers.utils.DatabaseCleanUp
-import org.assertj.core.api.Assertions
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -9,7 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 
 @SpringBootTest
-class OrderServiceTest @Autowired constructor(
+internal class OrderServiceTest @Autowired constructor(
     private val orderService: OrderService,
     private val orderRepository: OrderRepository,
     private val databaseCleanUp: DatabaseCleanUp,
@@ -30,8 +30,8 @@ class OrderServiceTest @Autowired constructor(
         val orderModel = orderService.createOrder(userId, orderItemModels)
 
         // then
-        Assertions.assertThat(orderModel.items.size).isEqualTo(orderItemModels.size)
-        Assertions.assertThat(orderModel.items.first()).isEqualTo(orderItemModels.first())
+        assertThat(orderModel.items.size).isEqualTo(orderItemModels.size)
+        assertThat(orderModel.items.first()).isEqualTo(orderItemModels.first())
     }
 
     @DisplayName("OrderModel을 지울경우 OrderModelItem 까지 한 번에 삭제가 된다.")
@@ -42,14 +42,14 @@ class OrderServiceTest @Autowired constructor(
         val orderItemModels = listOf(OrderItemModel.of(1L, "테스트 상품1", 1000.0, 2), OrderItemModel.of(2L, "테스트 상품2", 2000.0, 2))
         val orderModel = OrderModel.of(userId, orderItemModels)
             .let { orderRepository.save(it) }
-        Assertions.assertThat(orderModel.deletedAt).isNull()
+        assertThat(orderModel.deletedAt).isNull()
 
         // when
         orderService.deleteOrder(orderModel.id, userId)
 
         // then
         val refreshed = orderRepository.findByIdOrNull(orderModel.id)!!
-        Assertions.assertThat(refreshed.deletedAt).isNotNull
-        Assertions.assertThat(refreshed.status).isEqualTo(OrderStatus.CANCELLED)
+        assertThat(refreshed.deletedAt).isNotNull()
+        assertThat(refreshed.status).isEqualTo(OrderStatus.CANCELLED)
     }
 }

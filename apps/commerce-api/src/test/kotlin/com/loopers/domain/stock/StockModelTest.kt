@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.Assertions.assertAll
 
-class StockModelTest {
+internal class StockModelTest {
 
     @DisplayName("StockModel을 생성할 때")
     @Nested
@@ -27,7 +27,7 @@ class StockModelTest {
 
             // then
             assertAll(
-                { assertThat(stock).isNotNull },
+                { assertThat(stock).isNotNull() },
                 { assertThat(stock.productId).isEqualTo(productId) },
                 { assertThat(stock.quantity).isEqualTo(quantity) },
             )
@@ -178,7 +178,7 @@ class StockModelTest {
             val stock = StockModel.of(1L, 10)
 
             // when then
-            assertThat(stock.isAvailable(5)).isTrue
+            assertThat(stock.isAvailable(5)).isTrue()
         }
 
         @DisplayName("요청 수량이 현재 재고와 같으면 true를 반환한다.")
@@ -188,7 +188,7 @@ class StockModelTest {
             val stock = StockModel.of(1L, 10)
 
             // when then
-            assertThat(stock.isAvailable(10)).isTrue
+            assertThat(stock.isAvailable(10)).isTrue()
         }
 
         @DisplayName("요청 수량이 현재 재고보다 많으면 false를 반환한다.")
@@ -198,7 +198,7 @@ class StockModelTest {
             val stock = StockModel.of(1L, 10)
 
             // when then
-            assertThat(stock.isAvailable(11)).isFalse
+            assertThat(stock.isAvailable(11)).isFalse()
         }
     }
 
@@ -212,7 +212,7 @@ class StockModelTest {
             val stock = StockModel.of(1L, 0)
 
             // when then
-            assertThat(stock.isSoldOut()).isTrue
+            assertThat(stock.isSoldOut()).isTrue()
         }
 
         @DisplayName("재고가 1 이상이면 false를 반환한다.")
@@ -222,7 +222,7 @@ class StockModelTest {
             val stock = StockModel.of(1L, 1)
 
             // when then
-            assertThat(stock.isSoldOut()).isFalse
+            assertThat(stock.isSoldOut()).isFalse()
         }
     }
 
@@ -233,7 +233,7 @@ class StockModelTest {
         return listOf(
             DynamicTest.dynamicTest("1. 재고 2개로 생성하면 품절이 아니다.") {
                 stock = StockModel.of(1L, 2)
-                assertThat(stock.isSoldOut()).isFalse
+                assertThat(stock.isSoldOut()).isFalse()
             },
             DynamicTest.dynamicTest("2. 1개를 차감해도 아직 품절이 아니다.") {
                 stock.reduce(1)

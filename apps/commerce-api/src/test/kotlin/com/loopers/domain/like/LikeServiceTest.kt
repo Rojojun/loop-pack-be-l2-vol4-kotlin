@@ -3,7 +3,6 @@ package com.loopers.domain.like
 import com.loopers.fixture.LikeModelFixture
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatCode
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -23,7 +22,7 @@ internal class LikeServiceTest {
             val count = likeService.getLikeCount(1L)
 
             // then
-            assertEquals(0, count)
+            assertThat(count).isEqualTo(0)
         }
 
         @DisplayName("해당 상품에 등록된 좋아요 개수만큼 반환한다.")
@@ -38,7 +37,7 @@ internal class LikeServiceTest {
             val count = likeService.getLikeCount(1L)
 
             // then
-            assertEquals(2, count)
+            assertThat(count).isEqualTo(2)
         }
 
         @DisplayName("soft delete 된 좋아요는 카운트에서 제외된다.")
@@ -54,7 +53,7 @@ internal class LikeServiceTest {
             val count = likeService.getLikeCount(1L)
 
             // then : available() 필터로 삭제분은 제외되어 1
-            assertEquals(1, count)
+            assertThat(count).isEqualTo(1)
         }
     }
 
@@ -80,8 +79,8 @@ internal class LikeServiceTest {
             val result = likeService.getLikeCountGroupByProductId(listOf(1L, 2L))
 
             // then
-            assertEquals(LikeCount(2), result[ProductId(1L)])
-            assertEquals(LikeCount(1), result[ProductId(2L)])
+            assertThat(result[ProductId(1L)]).isEqualTo(LikeCount(2))
+            assertThat(result[ProductId(2L)]).isEqualTo(LikeCount(1))
         }
 
         @DisplayName("좋아요가 하나도 없는 상품은 결과 맵에 포함되지 않는다.")
@@ -120,8 +119,8 @@ internal class LikeServiceTest {
         fun newLike() {
             val created = likeService.addLike(1L, 1L)
 
-            assertThat(created).isTrue
-            assertEquals(LikeCount(1), likeService.getLikeCountGroupByProductId(listOf(1L))[ProductId(1L)])
+            assertThat(created).isTrue()
+            assertThat(likeService.getLikeCountGroupByProductId(listOf(1L))[ProductId(1L)]).isEqualTo(LikeCount(1))
         }
 
         @DisplayName("이미 좋아요한 상품에 다시 등록하면 false 를 반환한다. (멱등 no-op)")
@@ -129,7 +128,7 @@ internal class LikeServiceTest {
         fun duplicateLike() {
             likeService.addLike(1L, 1L)
 
-            assertThat(likeService.addLike(1L, 1L)).isFalse
+            assertThat(likeService.addLike(1L, 1L)).isFalse()
         }
 
         @DisplayName("좋아요 취소 후 다시 등록하면 true 를 반환한다. (재등록 가능)")
@@ -138,7 +137,7 @@ internal class LikeServiceTest {
             likeService.addLike(1L, 1L)
             likeService.remove(1L, 1L)
 
-            assertThat(likeService.addLike(1L, 1L)).isTrue
+            assertThat(likeService.addLike(1L, 1L)).isTrue()
         }
     }
 
