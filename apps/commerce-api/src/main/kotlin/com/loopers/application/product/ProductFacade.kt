@@ -3,9 +3,7 @@ package com.loopers.application.product
 import com.loopers.domain.brand.BrandService
 import com.loopers.domain.like.LikeService
 import com.loopers.domain.product.Level
-import com.loopers.domain.product.ProductDomain
 import com.loopers.domain.product.ProductDomainService
-import com.loopers.domain.product.ProductRepository
 import com.loopers.domain.product.ProductService
 import com.loopers.domain.product.TechCategory
 import com.loopers.domain.stock.StockService
@@ -18,7 +16,9 @@ class ProductFacade(
     private val productService: ProductService,
     private val brandService: BrandService,
     private val stockService: StockService,
-    private val likeService: LikeService
+    private val likeService: LikeService,
+
+    private val productDomainService: ProductDomainService
 ) {
     fun findProducts(
         brandId: Long?,
@@ -35,7 +35,7 @@ class ProductFacade(
         val stockModels = stockService.getStocksByProductId(productModelIds)
         val likeCounters = likeService.getLikeCountGroupByProductId(productModelIds)
 
-        return ProductDomainService.assemble(productModels, brandModels, likeCounters, stockModels)
+        return productDomainService.assemble(productModels, brandModels, likeCounters, stockModels)
             .map { ProductInfo.of(it) }
     }
 
@@ -45,7 +45,7 @@ class ProductFacade(
         val stock = stockService.getStockById(product.id)
         val likeCount = likeService.getLikeCount(product.id)
 
-        return ProductDomainService.getProductDomainForUser(product, brand ,stock, likeCount)
+        return productDomainService.getProductDomainForUser(product, brand ,stock, likeCount)
             .let { ProductInfo.of(it) }
     }
 }

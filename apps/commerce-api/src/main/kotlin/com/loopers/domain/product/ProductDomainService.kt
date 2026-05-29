@@ -6,8 +6,10 @@ import com.loopers.domain.like.ProductId
 import com.loopers.domain.stock.StockModel
 import com.loopers.support.function.orThrowNotFound
 import org.springframework.data.domain.Page
+import org.springframework.stereotype.Component
 
-object ProductDomainService {
+@Component
+class ProductDomainService {
     fun getProductDomainForAdmin(productModel: ProductModel, stockModel: StockModel, likeCount: Int): ProductDomain {
         val stockQuantity = stockModel.quantity
         return ProductDomain.ofAdmin(productModel, stockQuantity, likeCount)
