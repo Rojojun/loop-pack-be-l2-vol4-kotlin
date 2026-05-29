@@ -16,7 +16,7 @@ import java.time.ZonedDateTime
 
 @RestController
 @RequestMapping("/api/v1/orders")
-class OrderV1ApiController(
+class OrderV1Controller(
     private val orderFacade: OrderFacade,
 ) : OrderV1ApiSpec {
 
