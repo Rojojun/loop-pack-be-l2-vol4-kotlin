@@ -1,8 +1,6 @@
 package com.loopers.interfaces.api.product
 
 import com.loopers.application.product.ProductFacade
-import com.loopers.domain.product.Level
-import com.loopers.domain.product.TechCategory
 import com.loopers.interfaces.api.ApiResponse
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -21,12 +19,12 @@ class ProductV1Controller(
     @GetMapping
     override fun findProducts(
         @RequestParam(required = false) brandId: Long?,
-        @RequestParam(required = false) category: TechCategory?,
-        @RequestParam(required = false) level: Level?,
+        @RequestParam(required = false) category: ProductV1Dto.TechCategory?,
+        @RequestParam(required = false) level: ProductV1Dto.Level?,
         @RequestParam(required = false, defaultValue = "latest") sort: String,
         pageable: Pageable,
     ): ApiResponse<Page<ProductV1Dto.ProductResponse>> {
-        val page = productFacade.findProducts(brandId, category, level, sort, pageable)
+        val page = productFacade.findProducts(brandId, category?.toDomain(), level?.toDomain(), sort, pageable)
             .map { ProductV1Dto.ProductResponse.from(it) }
         return ApiResponse.success(page)
     }

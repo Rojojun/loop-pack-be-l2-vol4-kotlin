@@ -4,7 +4,7 @@ import com.loopers.application.order.OrderDetailInfo
 import com.loopers.application.order.OrderInfo
 import com.loopers.application.order.OrderItemInfo
 import com.loopers.application.order.OrderSummaryInfo
-import com.loopers.domain.order.OrderStatus
+import com.loopers.domain.order.OrderStatus as DomainOrderStatus
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotEmpty
@@ -14,6 +14,20 @@ import java.time.ZonedDateTime
 
 class OrderV1Dto {
     // TODO: Request/Response 필드를 docs/design/01a-api-spec.md 참고하여 채우세요.
+
+    enum class OrderStatus {
+        PENDING,
+        CONFIRMED,
+        CANCELLED;
+
+        companion object {
+            fun from(domain: DomainOrderStatus): OrderStatus = when (domain) {
+                DomainOrderStatus.PENDING -> PENDING
+                DomainOrderStatus.CONFIRMED -> CONFIRMED
+                DomainOrderStatus.CANCELLED -> CANCELLED
+            }
+        }
+    }
 
     data class PlaceOrderRequest(
         @field:NotEmpty
@@ -46,7 +60,7 @@ class OrderV1Dto {
                 OrderSummaryResponse(
                     orderId = info.orderId,
                     totalPrice = info.totalPrice,
-                    status = info.status,
+                    status = OrderStatus.from(info.status),
                     orderedAt = info.orderedAt,
                     itemCount = info.itemCount,
                 )
@@ -65,7 +79,7 @@ class OrderV1Dto {
                 OrderDetailResponse(
                     orderId = info.orderId,
                     totalPrice = info.totalPrice,
-                    status = info.status,
+                    status = OrderStatus.from(info.status),
                     orderedAt = info.orderedAt,
                     items = info.items.map { OrderItemDetailResponse.from(it) }
                 )

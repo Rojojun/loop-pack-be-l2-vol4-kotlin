@@ -2,7 +2,6 @@ package com.loopers.interfaces.api.order
 
 import com.loopers.application.order.AdminOrderDetailInfo
 import com.loopers.application.order.AdminOrderSummaryInfo
-import com.loopers.domain.order.OrderStatus
 import java.time.ZonedDateTime
 
 class OrderAdminV1Dto {
@@ -10,7 +9,7 @@ class OrderAdminV1Dto {
         val orderId: Long,
         val userId: Long,
         val totalPrice: Double,
-        val status: OrderStatus,
+        val status: OrderV1Dto.OrderStatus,
         val orderedAt: ZonedDateTime,
         val itemCount: Int,
     ) {
@@ -20,7 +19,7 @@ class OrderAdminV1Dto {
                     orderId = info.orderId,
                     userId = info.userId,
                     totalPrice = info.totalPrice,
-                    status = info.status,
+                    status = OrderV1Dto.OrderStatus.from(info.status),
                     orderedAt = info.orderedAt,
                     itemCount = info.itemCount,
                 )
@@ -31,7 +30,7 @@ class OrderAdminV1Dto {
         val orderId: Long,
         val userId: Long,
         val totalPrice: Double,
-        val status: OrderStatus,
+        val status: OrderV1Dto.OrderStatus,
         val orderedAt: ZonedDateTime,
         val items: List<OrderV1Dto.OrderItemDetailResponse>,
     ) {
@@ -41,7 +40,7 @@ class OrderAdminV1Dto {
                     orderId = info.orderId,
                     userId = info.userId,
                     totalPrice = info.totalPrice,
-                    status = info.status,
+                    status = OrderV1Dto.OrderStatus.from(info.status),
                     orderedAt = info.orderedAt,
                     items = info.items.map { OrderV1Dto.OrderItemDetailResponse.from(it) }
                 )

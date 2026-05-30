@@ -1,7 +1,7 @@
 package com.loopers.interfaces.api.brand
 
 import com.loopers.application.brand.AdminBrandInfo
-import com.loopers.domain.brand.BrandStatus
+import com.loopers.domain.brand.BrandStatus as DomainBrandStatus
 import jakarta.validation.constraints.NotBlank
 
 class BrandAdminV1Dto {
@@ -15,6 +15,20 @@ class BrandAdminV1Dto {
         val name: String,
     )
 
+    enum class BrandStatus {
+        ACTIVE,
+        CLOSED,
+        DELETED;
+
+        companion object {
+            fun from(domain: DomainBrandStatus): BrandStatus = when (domain) {
+                DomainBrandStatus.ACTIVE -> ACTIVE
+                DomainBrandStatus.CLOSED -> CLOSED
+                DomainBrandStatus.DELETED -> DELETED
+            }
+        }
+    }
+
     data class BrandAdminResponse(
         val id: Long,
         val name: String,
@@ -25,7 +39,7 @@ class BrandAdminV1Dto {
                 BrandAdminResponse(
                     id = info.id,
                     name = info.name,
-                    status = info.status,
+                    status = BrandStatus.from(info.status),
                 )
         }
     }

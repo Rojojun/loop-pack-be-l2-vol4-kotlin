@@ -47,8 +47,8 @@ class ProductAdminV1Controller(
             isbn = request.isbn,
             name = request.name,
             author = request.author,
-            category = request.category,
-            level = request.level,
+            category = request.category.toDomain(),
+            level = request.level.toDomain(),
             price = request.price,
             initialQuantity = request.initialQuantity,
             description = request.description,
@@ -66,8 +66,8 @@ class ProductAdminV1Controller(
             productId = productId,
             name = request.name,
             author = request.author,
-            category = request.category,
-            level = request.level,
+            category = request.category.toDomain(),
+            level = request.level.toDomain(),
             price = request.price,
         )
         val response = ProductAdminV1Dto.ProductAdminResponse.from(info)
