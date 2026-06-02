@@ -23,7 +23,7 @@ class OrderFacade(
         val productIds = productQuantityPairs.map { it.first }
         val productsById = productService.getProductsByIds(productIds).associateBy { it.id }
 
-        val stocksByProducts = stockService.findStocksByProductIdIn(productIds)
+        val stocksByProducts = stockService.findWithLockByProductIdIn(productIds)
             .associateBy { it.productId }
 
         productQuantityPairs.forEach { (productId, quantity) ->

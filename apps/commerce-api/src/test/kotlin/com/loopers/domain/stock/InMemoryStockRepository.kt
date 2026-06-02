@@ -25,4 +25,7 @@ class InMemoryStockRepository : StockRepository {
 
     override fun findStocksByProductIdIn(productIds: List<Long>): List<StockModel> =
         productIds.mapNotNull { data[it] }
+
+    override fun findWithLockByProductIdIn(productIds: List<Long>): List<StockModel> =
+        productIds.mapNotNull { data[it] }
 }
