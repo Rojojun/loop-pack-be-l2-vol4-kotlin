@@ -33,6 +33,9 @@ erDiagram
     products ||--o{ order_items : "스냅샷 참조"
     orders ||--|{ order_items : "1주문이 1~N개의 항목"
     orders ||--|| payments    : "1주문이 0~1개의 결제 (MVP는 1:1)"
+    coupon_templates ||--o{ user_coupons : "1정책이 N개 발급"
+    users ||--o{ user_coupons            : "1명이 N개 보유"
+    user_coupons ||--o| orders           : "1쿠폰이 0~1개 주문에 사용"
 
     users {
         bigint      id              PK
@@ -92,8 +95,11 @@ erDiagram
     orders {
         bigint      id              PK
         bigint      user_id         FK  "users.id"
+        bigint      coupon_id       FK  "user_coupons.id, nullable"
         enum        status              "PENDING / CONFIRMED / CANCELLED"
-        int         total_amount        "주문 시점 총액"
+        int         total_amount        "쿠폰 적용 전 금액(원가) 스냅샷"
+        int         discount_amount     "할인 금액 스냅샷 (미적용 0)"
+        int         final_amount        "최종 결제 금액 = total - discount, 0 하한"
         datetime    ordered_at
         datetime    created_at
         datetime    updated_at
@@ -125,6 +131,30 @@ erDiagram
         datetime    created_at
         datetime    updated_at
         datetime    deleted_at              "삭제 불가 — 항상 NULL"
+    }
+
+    coupon_templates {
+        bigint      id                PK
+        varchar100  name
+        enum        type                  "FIXED(정액) / RATE(정률)"
+        int         value                 "정액=원, 정률=%"
+        int         min_order_amount      "nullable — 최소 주문 금액 조건"
+        datetime    expired_at            "만료 일시"
+        datetime    created_at
+        datetime    updated_at
+        datetime    deleted_at            "소프트 삭제 시 세팅"
+    }
+
+    user_coupons {
+        bigint      id                PK
+        bigint      template_id       FK  "coupon_templates.id"
+        bigint      user_id           FK  "users.id"
+        enum        status                "AVAILABLE / USED (EXPIRED는 expired_at으로 파생)"
+        datetime    issued_at
+        datetime    used_at               "nullable — 사용 시각"
+        datetime    created_at
+        datetime    updated_at
+        datetime    deleted_at
     }
 ```
 
@@ -268,8 +298,11 @@ erDiagram
 |----------------|----------|-----------------------------|------------------------------------------------------|
 | `id`           | BIGINT   | PK, AUTO_INCREMENT          |                                                      |
 | `user_id`      | BIGINT   | NOT NULL, FK → users.id     | 주문 이력 보존                                       |
+| `coupon_id`       | BIGINT | NULL, FK → user_coupons.id  | 적용한 쿠폰 (미적용 시 NULL)                         |
 | `status`       | ENUM     | NOT NULL, DEFAULT 'PENDING' | PENDING \| CONFIRMED \| CANCELLED                    |
-| `total_amount` | INT      | NOT NULL                    | 주문 시점 총액                                       |
+| `total_amount` | INT      | NOT NULL                    | 쿠폰 적용 전 금액(원가) 스냅샷                       |
+| `discount_amount` | INT   | NOT NULL, DEFAULT 0         | 할인 금액 스냅샷 (미적용 0)                          |
+| `final_amount` | INT      | NOT NULL                    | 최종 결제 금액 스냅샷 = total − discount (0 하한)    |
 | `ordered_at`   | DATETIME | NOT NULL                    | 주문 확정 일시                                       |
 | `created_at`   | DATETIME | NOT NULL                    | BaseEntity                                           |
 | `updated_at`   | DATETIME | NOT NULL                    | BaseEntity                                           |
@@ -341,6 +374,47 @@ erDiagram
 
 ---
 
+### coupon_templates
+
+| 컬럼               | 타입         | 제약               | 설명                                  |
+|--------------------|--------------|--------------------|---------------------------------------|
+| `id`               | BIGINT       | PK, AUTO_INCREMENT |                                       |
+| `name`             | VARCHAR(100) | NOT NULL           | 쿠폰 이름                             |
+| `type`             | ENUM         | NOT NULL           | `FIXED`(정액) \| `RATE`(정률)         |
+| `value`            | INT          | NOT NULL           | 정액=할인 금액(원), 정률=퍼센트(%)    |
+| `min_order_amount` | INT          | NULL               | 최소 주문 금액 조건 (선택)            |
+| `expired_at`       | DATETIME     | NOT NULL           | 만료 일시 — `EXPIRED` 동적 판정 기준  |
+| `created_at`       | DATETIME     | NOT NULL           | BaseEntity                            |
+| `updated_at`       | DATETIME     | NOT NULL           | BaseEntity                            |
+| `deleted_at`       | DATETIME     | NULL               | 소프트 삭제 (기발급 쿠폰엔 영향 없음) |
+
+---
+
+### user_coupons
+
+| 컬럼          | 타입     | 제약                               | 설명                                                     |
+|---------------|----------|------------------------------------|----------------------------------------------------------|
+| `id`          | BIGINT   | PK, AUTO_INCREMENT                 |                                                          |
+| `template_id` | BIGINT   | NOT NULL, FK → coupon_templates.id | 발급 출처 정책                                           |
+| `user_id`     | BIGINT   | NOT NULL, FK → users.id            | 소유자                                                   |
+| `status`      | ENUM     | NOT NULL, DEFAULT 'AVAILABLE'      | `AVAILABLE` \| `USED` — `EXPIRED`는 `expired_at`으로 파생 |
+| `issued_at`   | DATETIME | NOT NULL                           | 발급 시각                                                |
+| `used_at`     | DATETIME | NULL                               | 사용 시각 (미사용 NULL)                                  |
+| `created_at`  | DATETIME | NOT NULL                           | BaseEntity                                               |
+| `updated_at`  | DATETIME | NOT NULL                           | BaseEntity                                               |
+| `deleted_at`  | DATETIME | NULL                               | BaseEntity                                               |
+
+**인덱스**
+
+| 인덱스                      | 컬럼                | 용도                          |
+|-----------------------------|---------------------|-------------------------------|
+| `idx_user_coupons_user`     | `user_id`, `status` | 내 쿠폰 목록 조회 (상태 필터) |
+| `idx_user_coupons_template` | `template_id`       | 발급 내역 조회 (어드민)       |
+
+> 주문 시 `user_coupons` 행을 **비관적 락(FOR UPDATE)**으로 조회 후 `AVAILABLE → USED` 전이 — 동시 사용 Lost Update 차단 (ADR-0001 패턴).
+
+---
+
 ## 설계 결정 및 주의사항
 
 | 항목                               | 결정                                                                               | 근거                                                                                                          |
@@ -355,4 +429,8 @@ erDiagram
 | `payments` 삭제 불가               | `deleted_at` 항상 NULL                                                             | PG 거래 감사·정산 영구 보존. 재결제·환불도 새 행 생성으로 처리                                                |
 | `payments` PG 종속 격리            | `pg_transaction_id` VARCHAR(100) 단일 컬럼                                         | PG별 응답 스키마 차이는 어댑터(`TossPgAdapter` 등)가 흡수. DB에는 거래번호만 영속                              |
 | `likes` 삭제 방식 구분             | 유저 토글: 행 하드 삭제 / cascade: `deleted_at` 소프트 삭제                        | 토글은 빈번한 연산 — 하드 삭제가 단순. cascade는 복구 가능성 고려                                             |
+| `user_coupons` 재사용 방지         | 주문 시 비관적 락(FOR UPDATE) + `status` `AVAILABLE`→`USED` 단방향                 | 동시 주문 Lost Update 차단 — ADR-0001 재고 락 패턴 재사용. 락 순서: 쿠폰 → 재고 (고정)                       |
+| 쿠폰 `EXPIRED` 동적 판정           | `status`엔 `AVAILABLE`/`USED`만 저장, `EXPIRED`는 `expired_at < now` 조회 시 계산  | 배치 인프라 불필요. 만료 전환 누락 위험 제거                                                                 |
+| 주문 금액 3종 스냅샷               | `total_amount`(원가)·`discount_amount`·`final_amount` 모두 영속                    | 템플릿 변경·삭제와 무관하게 과거 주문 금액 불변                                                              |
+| `coupon_templates` 삭제           | soft delete (`deleted_at`)                                                         | 기발급 `user_coupons`는 스냅샷 정책상 영향 없음. 발급 내역 추적 위해 하드 삭제 금지                          |
 | `likes` 멱등성 보장 계층           | DB: 복합 PK 제약 (race condition 방지) / App: 선제 `exists` 검사 후 완전 멱등 처리 | 좋아요는 상태 토글 — REST PUT 시맨틱. 모바일 재시도/네트워크 재전송 강건. 자원 최종 상태가 동일하면 동일 응답 |

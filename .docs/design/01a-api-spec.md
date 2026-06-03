@@ -128,9 +128,12 @@
   "items": [
     { "productId": 1, "quantity": 2 },
     { "productId": 3, "quantity": 1 }
-  ]
+  ],
+  "couponId": 42
 }
 ```
+
+> `couponId`는 선택(미적용 시 생략, NULLABLE). 미존재·타인 소유·사용 완료·만료·최소주문금액 미달 시 **주문 실패**. 주문 성공 시 쿠폰은 즉시 `USED`.
 
 ---
 
@@ -173,7 +176,41 @@
 
 ---
 
-## API 전체 목록 (25개)
+## 🎟 쿠폰 (Coupons) — 대고객
+
+| METHOD | URI                                | 인증 | 설명                                          |
+|--------|------------------------------------|------|-----------------------------------------------|
+| POST   | `/api/v1/coupons/{couponId}/issue` | O    | 쿠폰 발급 요청                                |
+| GET    | `/api/v1/users/me/coupons`         | O    | 내 쿠폰 목록 (AVAILABLE/USED/EXPIRED 상태 포함) |
+
+## 🎟 쿠폰 (Coupons) — 어드민
+
+| METHOD | URI                                                      | 설명                          |
+|--------|----------------------------------------------------------|-------------------------------|
+| GET    | `/api-admin/v1/coupons?page=0&size=20`                   | 쿠폰 템플릿 목록              |
+| GET    | `/api-admin/v1/coupons/{couponId}`                       | 쿠폰 템플릿 상세              |
+| POST   | `/api-admin/v1/coupons`                                  | 템플릿 등록 (`FIXED`/`RATE`)  |
+| PUT    | `/api-admin/v1/coupons/{couponId}`                       | 템플릿 수정                   |
+| DELETE | `/api-admin/v1/coupons/{couponId}`                       | 템플릿 삭제 (soft)            |
+| GET    | `/api-admin/v1/coupons/{couponId}/issues?page=0&size=20` | 발급 내역 조회                |
+
+### 쿠폰 템플릿 등록 예시
+
+```json
+{
+  "name": "신규가입 10% 할인",
+  "type": "RATE",
+  "value": 10,
+  "minOrderAmount": 10000,
+  "expiredAt": "2026-12-31T23:59:59"
+}
+```
+
+> `type`: `FIXED` 정액(원) | `RATE` 정률(%). `value`는 타입에 따라 할인 금액(원) 또는 퍼센트. `minOrderAmount`는 선택.
+
+---
+
+## API 전체 목록 (32개)
 
 `02-sequence-diagrams.md`의 시퀀스 다이어그램과 1:1 매핑된다.
 
@@ -203,4 +240,12 @@
 | 22  | GET    | `/api/v1/orders/{orderId}`           | O     | 로직       |
 | 23  | GET    | `/api-admin/v1/orders`               | Admin | 로직       |
 | 24  | GET    | `/api-admin/v1/orders/{orderId}`     | Admin | 로직       |
+| 25  | POST   | `/api/v1/coupons/{couponId}/issue`        | O     | 로직       |
+| 26  | GET    | `/api/v1/users/me/coupons`                | O     | 로직       |
+| 27  | GET    | `/api-admin/v1/coupons`                   | Admin | 로직       |
+| 28  | GET    | `/api-admin/v1/coupons/{couponId}`        | Admin | 로직       |
+| 29  | POST   | `/api-admin/v1/coupons`                   | Admin | 로직       |
+| 30  | PUT    | `/api-admin/v1/coupons/{couponId}`        | Admin | 로직       |
+| 31  | DELETE | `/api-admin/v1/coupons/{couponId}`        | Admin | 로직       |
+| 32  | GET    | `/api-admin/v1/coupons/{couponId}/issues` | Admin | 로직       |
 | 25  | POST   | `/api/v1/orders/{orderId}/payments`  | O     | 어그리거트 |
