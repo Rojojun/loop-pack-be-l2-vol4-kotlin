@@ -103,7 +103,7 @@ internal class ProductDomainServiceTest {
             assertThat(domain.likeCount).isEqualTo(0)
         }
 
-        @DisplayName("조립된 ProductDomain 은 ProductInfo.of 로 변환된다.")
+        @DisplayName("조립된 ProductDomain 은 ProductInfo.from 로 변환된다.")
         @Test
         fun convertToProductInfo() {
             // given

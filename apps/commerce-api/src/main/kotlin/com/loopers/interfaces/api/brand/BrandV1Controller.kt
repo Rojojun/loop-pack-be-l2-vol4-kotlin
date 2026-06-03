@@ -14,8 +14,9 @@ class BrandV1Controller(
 ) : BrandV1ApiSpec {
 
     @GetMapping("/{brandId}")
-    override fun getBrand(@PathVariable brandId: Long): ApiResponse<BrandV1Dto.BrandResponse> =
-        brandFacade.getBrand(brandId)
-            .let { BrandV1Dto.BrandResponse.from(it) }
-            .let { ApiResponse.success(it) }
+    override fun getBrand(@PathVariable brandId: Long): ApiResponse<BrandV1Dto.BrandResponse> {
+        val info = brandFacade.getBrand(brandId)
+        val response = BrandV1Dto.BrandResponse.from(info)
+        return ApiResponse.success(response)
+    }
 }
