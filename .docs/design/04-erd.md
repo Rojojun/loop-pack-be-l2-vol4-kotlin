@@ -28,6 +28,7 @@ erDiagram
     users ||--o{ likes       : "1명이 N개의 좋아요"
     users ||--o{ orders      : "1명이 N개의 주문"
     brands ||--o{ products   : "1브랜드가 N개의 상품"
+    products ||--|| stocks   : "1상품 1재고 (창고 실수량 분리)"
     products ||--o{ likes    : "1상품이 N개의 좋아요"
     products ||--o{ order_items : "스냅샷 참조"
     orders ||--|{ order_items : "1주문이 1~N개의 항목"
@@ -63,12 +64,20 @@ erDiagram
         enum        category            "BACKEND / FRONTEND / DEVOPS / AI_ML / DATABASE / SECURITY / NETWORK / ETC"
         enum        level               "BEGINNER / INTERMEDIATE / ADVANCED"
         int         price               "0 이상"
-        int         stock               "0 이상"
         int         like_count          "비정규화 집계값 — Like 컨텍스트가 증감"
         enum        status              "ACTIVE / DELETED"
         datetime    created_at
         datetime    updated_at
         datetime    deleted_at          "소프트 삭제 시 세팅"
+    }
+
+    stocks {
+        bigint      id              PK
+        bigint      product_id      FK,UK  "products.id, 1:1 보장"
+        int         quantity            "0 이상 — 차감/복구 책임을 자체 보유"
+        datetime    created_at
+        datetime    updated_at
+        datetime    deleted_at          "Product cascade 소프트 삭제 시만 세팅"
     }
 
     likes {
@@ -170,7 +179,6 @@ erDiagram
 | `category`   | ENUM         | NOT NULL                   | 기술 카테고리                                |
 | `level`      | ENUM         | NOT NULL                   | 난이도                                       |
 | `price`      | INT          | NOT NULL                   | 0 이상                                       |
-| `stock`      | INT          | NOT NULL, DEFAULT 0        | 0 이상                                       |
 | `like_count` | INT          | NOT NULL, DEFAULT 0        | 비정규화 집계값. Like 컨텍스트가 원자적 증감 |
 | `status`     | ENUM         | NOT NULL, DEFAULT 'ACTIVE' | ACTIVE \| DELETED                            |
 | `created_at` | DATETIME     | NOT NULL                   | BaseEntity                                   |
@@ -185,6 +193,38 @@ erDiagram
 | `idx_products_brand_id`   | `brand_id`                    | 브랜드별 상품 목록                |
 | `idx_products_filter`     | `category`, `level`, `status` | 카테고리·난이도 복합 필터 (H1·H2) |
 | `idx_products_like_count` | `like_count DESC`             | `likes_desc` 정렬                 |
+
+---
+
+### stocks
+
+`Product`와 1:1로 분리된 창고 실재고 테이블. `quantity`의 차감/복구 책임을 자체 보유한다.
+
+| 컬럼         | 타입     | 제약                                      | 설명                                                |
+|--------------|----------|-------------------------------------------|-----------------------------------------------------|
+| `id`         | BIGINT   | PK, AUTO_INCREMENT                        |                                                     |
+| `product_id` | BIGINT   | NOT NULL, UNIQUE, FK → products.id        | 1:1 보장. 한 상품에 재고 1행                        |
+| `quantity`   | INT      | NOT NULL, DEFAULT 0                       | 0 이상. `reduce()`/`restore()`로 자체 상태 관리     |
+| `created_at` | DATETIME | NOT NULL                                  | BaseEntity                                          |
+| `updated_at` | DATETIME | NOT NULL                                  | BaseEntity                                          |
+| `deleted_at` | DATETIME | NULL                                      | Product cascade 소프트 삭제 시 세팅                 |
+
+**인덱스**
+
+| 인덱스                  | 컬럼         | 용도                                      |
+|-------------------------|--------------|-------------------------------------------|
+| `uk_stocks_product_id`  | `product_id` | 1:1 보장. 상품 → 재고 단건 조회 (N+1 회피) |
+
+**상태 변경 규칙 (애플리케이션 보장):**
+
+| 동작              | 조건                                  | 트리거                                       |
+|-------------------|---------------------------------------|----------------------------------------------|
+| `reduce(amount)`  | `amount > 0` 이고 `quantity >= amount` | Order 컨텍스트 (주문 확정 시점, 단일 차감)   |
+| `restore(amount)` | `amount > 0`                           | Payment 컨텍스트 (결제 실패 시 보상)         |
+
+> 동시성: 동일 `product_id` 행에 대한 동시 `reduce()` 시 음수 가능성 — `00-domain-spec.md` §주문 — 설계 리스크의 재고 동시성 항목을 따른다 (낙관적 락 / 비관적 락 / Redis 분산 락 중 택일, 구현 시 결정).
+>
+> **확장 포인트** — 재고 변동 이력(`stock_movements`) 테이블은 MVP 범위 외. 감사·정산 요건이 생길 때 `stock_id`, `change_amount(+/-)`, `reason(INBOUND/ORDER/CANCEL/ADJUST)`, `order_id`, `occurred_at` 컬럼으로 별도 도입. 도입 시 `reduce()`/`restore()`가 이중 쓰기(마스터 UPDATE + 이력 INSERT).
 
 ---
 
@@ -307,6 +347,7 @@ erDiagram
 |------------------------------------|------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
 | `BaseEntity` 공통 필드             | 전 테이블에 `id`, `created_at`, `updated_at`, `deleted_at`                         | JPA `@MappedSuperclass` 상속. 소프트 삭제·이력 추적 표준화                                                    |
 | `users.birth` / `users.email`      | `BirthVO`, `EmailVO`로 검증 후 각 컬럼에 저장                                      | `birth` — 비밀번호에 생년월일 포함 금지 규칙 검증에 활용. `email` — 표준 정규식 검증                          |
+| `stock` 분리 (1:1 별도 테이블)     | `products.stock` 컬럼 제거 → `stocks` 테이블 신규 (`product_id` UNIQUE)            | 카탈로그(Product)와 창고 실재고(Stock) 책임 분리. 차감/복구 트랜잭션이 Product 행을 잠그지 않음 (목록 조회·수정과 격리) |
 | `like_count` 비정규화              | `products.like_count` 컬럼으로 직접 관리                                           | `likes_desc` 정렬 시 매번 COUNT 집계 쿼리 회피                                                                |
 | `order_items.product_id` FK 없음   | 참조 무결성 강제 안 함                                                             | 상품 소프트 삭제 후에도 스냅샷 영구 보존 필요                                                                 |
 | `orders` / `order_items` 삭제 불가 | `deleted_at` 항상 NULL                                                             | 회계·법적 증거 영구 보존. BaseEntity 필드는 있으나 `delete()` 호출 금지                                       |

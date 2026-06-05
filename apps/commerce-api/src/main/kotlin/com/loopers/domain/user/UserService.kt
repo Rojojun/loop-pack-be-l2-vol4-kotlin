@@ -4,6 +4,7 @@ import com.loopers.domain.value.BirthVO
 import com.loopers.domain.value.EmailVO
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
+import com.loopers.support.function.orThrowNotFound
 import com.loopers.support.security.PasswordEncoder
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
@@ -11,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional
 @Component
 class UserService(
-    val userRepository: UserRepository
+    private val userRepository: UserRepository
 ) {
     fun createUserModel(
         loginId: String,
@@ -27,8 +28,13 @@ class UserService(
 
     @Transactional(readOnly = true)
     fun getUserModel(id: Long): UserModel {
-        return userRepository.findByIdOrNull(id).ifNullThrow()
+        return userRepository.findByIdOrNull(id) orThrowNotFound "유저의 아이디가 존재하지 않습니다."
     }
+
+    @Transactional(readOnly = true)
+    fun getByLoginId(loginId: String): UserModel =
+        userRepository.findByLoginId(loginId)
+            .orElseThrow { CoreException(ErrorType.NOT_FOUND, "유저의 아이디가 존재하지 않습니다.") }
 
     @Transactional(readOnly = true)
     fun checkLoginIdDuplication(loginId: String) {
@@ -41,7 +47,4 @@ class UserService(
         userModel.changePassword(encrypted)
         userRepository.save(userModel)
     }
-
-    private fun UserModel?.ifNullThrow(): UserModel =
-        this ?: throw CoreException(ErrorType.NOT_FOUND, "유저의 아이디가 존재하지 않습니다.")
 }

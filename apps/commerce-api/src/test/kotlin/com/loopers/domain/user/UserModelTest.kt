@@ -3,7 +3,11 @@ package com.loopers.domain.user
 import com.loopers.domain.value.BirthVO
 import com.loopers.domain.value.EmailVO
 import com.loopers.fixture.UserModelFixture
+import com.loopers.support.error.CoreException
 import com.loopers.support.security.PasswordMatcher
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatCode
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -14,7 +18,7 @@ import java.time.LocalDate
 import java.time.Month
 import java.util.stream.Stream
 
-class UserModelTest {
+internal class UserModelTest {
     @DisplayName("유저 모델을 생성할 때")
     @Nested
     internal inner class Create {
@@ -32,7 +36,7 @@ class UserModelTest {
             val userModel = UserModel.of(loginId, name, password!!, birth, emailVO) { it }
 
             // then
-            org.junit.jupiter.api.Assertions.assertEquals(loginId, userModel.loginId)
+            assertThat(userModel.loginId).isEqualTo(loginId)
         }
 
         @DisplayName("생년월일이 비밀번호에 포함되어 있는 경우 실패한다")
@@ -46,10 +50,10 @@ class UserModelTest {
             val emailVO = EmailVO("test@test.com")
 
             // when then
-            org.assertj.core.api.Assertions.assertThatThrownBy {
+            assertThatThrownBy {
                 UserModel.of(loginId, name, password, birth, emailVO) { it }
             }
-                .isInstanceOf(java.lang.IllegalArgumentException::class.java)
+                .isInstanceOf(CoreException::class.java)
                 .hasMessage("비밀번호 생성 규칙 위반 : 생년월일은 비밀번호 내에 포함할 수 없습니다.")
         }
 
@@ -69,11 +73,37 @@ class UserModelTest {
         val passwordMatcher = PasswordMatcher { raw, encoded -> raw == encoded }
 
         // when then
-        org.assertj.core.api.Assertions.assertThatThrownBy {
+        assertThatThrownBy {
             userModel.validPasswordChange(originalPassword, targetPassword, passwordMatcher)
         }
-            .isInstanceOf(IllegalArgumentException::class.java)
+            .isInstanceOf(CoreException::class.java)
             .hasMessage(exceptionWord)
+    }
+
+    @DisplayName("본인 여부를 검증할 때")
+    @Nested
+    internal inner class ValidateSelf {
+        @DisplayName("요청자 id 가 본인과 같으면 예외가 발생하지 않는다.")
+        @Test
+        fun passWhenSelf() {
+            // given
+            val user = UserModelFixture.defaults().toModel()
+
+            // when then
+            assertThatCode { user.validateSelf(user.id) }.doesNotThrowAnyException()
+        }
+
+        @DisplayName("요청자 id 가 본인과 다르면 FORBIDDEN CoreException 을 던진다.")
+        @Test
+        fun forbiddenWhenNotSelf() {
+            // given
+            val user = UserModelFixture.defaults().toModel()
+
+            // when then
+            assertThatThrownBy { user.validateSelf(999L) }
+                .isInstanceOf(CoreException::class.java)
+                .hasMessage("본인만 접근할 수 있습니다.")
+        }
     }
 
     companion object {

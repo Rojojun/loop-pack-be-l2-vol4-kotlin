@@ -183,15 +183,16 @@ classDiagram
 
 ---
 
-## 3. Brand·Product 컨텍스트 — 두 개의 독립 Aggregate
+## 3. Brand·Product·Stock 컨텍스트 — 세 개의 독립 Aggregate
 
-담당: IT 기술서 등록·관리.  
-`Brand`와 `Product`는 **독립된 애그리거트**다. `Product`는 `brandId(Long)`로 Brand를 ID 참조한다.
+담당: IT 기술서 등록·관리 + 창고 실재고 관리.  
+`Brand`, `Product`, `Stock`은 **각각 독립된 애그리거트**다. `Product`는 `brandId(Long)`로 Brand를, `Stock`은 `productId(Long)`로 Product를 ID 참조한다 (직접 객체 참조 금지).
 
 **분리 근거:**
-- `Product.reduceStock()`, `Product.incrementLikeCount()`는 Brand를 전혀 필요로 하지 않는다
-- 트랜잭션 경계가 다르다 — Order·Like 흐름은 Product만 변경, Brand는 무관
-- cascade 삭제는 도메인 규칙이 아닌 **Facade(application) 레이어**가 조율한다
+- `Product.incrementLikeCount()`는 Brand를 전혀 필요로 하지 않는다
+- **Stock 분리**: Product는 카탈로그(도서 정보), Stock은 창고 실수량. 차감/복구 트랜잭션이 Product 행(이름·가격·status)을 잠그지 않도록 분리. 동시성 충돌 영역 축소
+- 트랜잭션 경계가 다르다 — Order 흐름은 Stock만 변경, Like 흐름은 Product만 변경, Brand는 무관
+- cascade 삭제는 도메인 규칙이 아닌 **Facade(application) 레이어**가 조율한다 (`AdminBrandFacade` → Product → Stock → Like 순)
 
 `TechCategory`·`Level`은 전 직군 채택된 핵심 필터 (H1 62%, H2 79.1%).
 
@@ -233,17 +234,33 @@ classDiagram
         -category: TechCategory
         -level: Level
         -price: Price
-        -stock: Stock
         -likeCount: LikeCount
         -status: ProductStatus
         -deletedAt: LocalDateTime
-        +of(brandId, isbn, name, author, category, level, price, stock)$ ProductModel
-        +update(name, author, category, level, price, stock) void
-        +reduceStock(quantity) void
+        +of(brandId, isbn, name, author, category, level, price)$ ProductModel
+        +update(name, author, category, level, price) void
         +incrementLikeCount() void
         +decrementLikeCount() void
         +isActive() boolean
         +softDelete() void
+    }
+
+    class StockModel {
+        <<AggregateRoot>>
+        -id: Long
+        -productId: Long
+        productId는 ProductModel의 ID참조 객체참조아님
+        -quantity: Quantity
+        -deletedAt: LocalDateTime
+        +of(productId, quantity)$ StockModel
+        +reduce(amount) void
+        부족시 CoreException throw 동시성race 최후안전망
+        +restore(amount) void
+        +isAvailable(required) boolean
+        +isSoldOut() boolean
+        파생상태 quantity == 0
+        +softDelete() void
+        규칙 quantity 0 이상 단방향 차감 보호
     }
 
     class ISBN {
@@ -264,11 +281,11 @@ classDiagram
         공유 Order컨텍스트에서도사용
     }
 
-    class Stock {
+    class Quantity {
         <<ValueObject>>
         -value: int
         규칙 0이상
-        차감책임 Order컨텍스트
+        공유 Order컨텍스트 OrderItem에서도사용
     }
 
     class LikeCount {
@@ -316,17 +333,35 @@ classDiagram
     class ProductService {
         <<Service>>
         -productRepository: ProductRepository
-        +createProduct(brandId, isbn, name, author, category, level, price, stock) ProductModel
+        +createProduct(brandId, isbn, name, author, category, level, price) ProductModel
         +getProductModel(id) ProductModel
         +findProducts(category, level, brandId, sort, pageable) Page~ProductModel~
         +checkIsbnDuplication(isbn) void
-        +updateProduct(id, name, author, category, level, price, stock) ProductModel
+        +updateProduct(id, name, author, category, level, price) ProductModel
         +deleteProduct(id) void
         +softDeleteAllByBrandId(brandId) void
-        +validateAndReduceStock(productModel, qty) void
-        +restoreStock(orderItems) void
         +incrementLikeCount(productModel) void
         +decrementLikeCount(productId) void
+    }
+
+    class StockService {
+        <<Service>>
+        -stockRepository: StockRepository
+        +createStock(productId, initialQuantity) StockModel
+        +getStockModelByProductId(productId) StockModel
+        +reduceStock(productId, quantity) void
+        없으면 throw 부족하면 throw
+        +restoreStock(orderItems) void
+        결제실패보상 항목별 별도트랜잭션
+        +softDeleteByProductIds(productIds) void
+    }
+
+    class StockRepository {
+        <<Repository>>
+        <<interface>>
+        +save(StockModel) StockModel
+        +findByProductId(productId) Optional~StockModel~
+        +softDeleteByProductIds(productIds) void
     }
 
     class BrandRepository {
@@ -360,24 +395,28 @@ classDiagram
         <<Facade>>
         -brandService: BrandService
         -productService: ProductService
+        -stockService: StockService
         -likeService: LikeService
         +getBrands(pageable) Page~BrandInfo~
         +getBrand(brandId) BrandInfo
         +createBrand(name) BrandInfo
         +updateBrand(brandId, name) BrandInfo
         +deleteBrand(brandId) void
-        cascade: softDeleteAllByBrandId → softDeleteByProductIds → softDeleteBrand
+        cascade Product → Stock → Like 순으로 softDelete 후 Brand softDelete
     }
 
     class AdminProductFacade {
         <<Facade>>
         -brandService: BrandService
         -productService: ProductService
-        +createProduct(brandId, isbn, name, author, category, level, price, stock) AdminProductInfo
+        -stockService: StockService
+        조율순서 createProduct → createStock 단일트랜잭션
+        +createProduct(brandId, isbn, name, author, category, level, price, initialQuantity) AdminProductInfo
         +getProduct(productId) AdminProductInfo
         +findProducts(brandId, pageable) Page~AdminProductInfo~
-        +updateProduct(productId, name, author, category, level, price, stock) AdminProductInfo
+        +updateProduct(productId, name, author, category, level, price) AdminProductInfo
         +deleteProduct(productId) void
+        cascade softDeleteByProductIds Stock 포함
     }
 
     class BrandInfo {
@@ -408,9 +447,10 @@ classDiagram
         어드민 전용 전체 필드 포함
         +productId: Long
         +isbn: String
-        +stock: int
+        +stockQuantity: int
+        StockService로 조회한 별도 엔티티 값
         +status: String
-        +from(ProductModel)$ AdminProductInfo
+        +from(ProductModel, StockModel)$ AdminProductInfo
     }
 
     BrandModel *-- BrandName
@@ -419,20 +459,25 @@ classDiagram
     ProductModel *-- ISBN
     ProductModel *-- ProductName
     ProductModel *-- Price
-    ProductModel *-- Stock
     ProductModel *-- LikeCount
     ProductModel --> TechCategory
     ProductModel --> Level
     ProductModel --> ProductStatus
 
+    StockModel *-- Quantity
+    ProductModel "1" .. "1" StockModel : productId 참조 별도 Aggregate
+
     BrandService ..> BrandRepository
     ProductService ..> ProductRepository
+    StockService ..> StockRepository
 
     ProductFacade ..> ProductService
     AdminBrandFacade ..> BrandService
     AdminBrandFacade ..> ProductService
+    AdminBrandFacade ..> StockService : cascade 소프트 삭제
     AdminProductFacade ..> BrandService
     AdminProductFacade ..> ProductService
+    AdminProductFacade ..> StockService : 등록·조회·삭제 조율
 ```
 
 ---
@@ -542,8 +587,10 @@ classDiagram
 
     class OrderItemModel {
         <<Entity>>
-        -orderId: Long
+        -order: OrderModel
+        한 애그리거트 내부 객체 직접 참조 JPA 양방향 매핑
         -productId: Long
+        productId는 ProductModel의 ID참조 객체참조아님
         -productNameSnapshot: String
         -unitPriceSnapshot: Price
         -quantity: Quantity
@@ -594,8 +641,9 @@ classDiagram
     class OrderFacade {
         <<Facade>>
         -productService: ProductService
+        -stockService: StockService
         -orderService: OrderService
-        조율순서 ProductService재고차감후OrderService주문생성
+        조율순서 ProductService조회→StockService재고차감→OrderService주문생성
         +placeOrder(userId, items) OrderInfo
         +findOrders(userId, startAt, endAt) List~OrderSummaryInfo~
         +getOrder(userId, orderId) OrderDetailInfo
@@ -663,14 +711,15 @@ classDiagram
     OrderItemModel *-- Quantity
 
     OrderService ..> OrderRepository
-    OrderFacade ..> ProductService : 재고 확인·차감
+    OrderFacade ..> ProductService : 상품 조회·스냅샷
+    OrderFacade ..> StockService : 재고 확인·차감
     OrderFacade ..> OrderService
     AdminOrderFacade ..> OrderService
 ```
 
-> **`OrderService.confirmOrder/cancelOrder`**: 결제 시퀀스의 보상·완료 단계가 호출. `cancelOrder`는 상태만 `CANCELLED`로 전이 — 재고 복구는 `ProductService.restoreStock`이 별도 트랜잭션으로 수행 (Facade가 두 호출을 순서 조율).
+> **`OrderService.confirmOrder/cancelOrder`**: 결제 시퀀스의 보상·완료 단계가 호출. `cancelOrder`는 상태만 `CANCELLED`로 전이 — 재고 복구는 `StockService.restoreStock`이 별도 트랜잭션으로 수행 (Facade가 두 호출을 순서 조율).
 >
-> **`ProductService.restoreStock(orderItems)`**: 결제 실패 보상. 각 `OrderItem`의 `productId`·`quantity`만큼 `stock`을 `UPDATE products SET stock = stock + ?`로 가산. 항목별 별도 트랜잭션 (현 MVP) — 부분 실패 시 운영 로그 + 수동 처리.
+> **`StockService.restoreStock(orderItems)`**: 결제 실패 보상. 각 `OrderItem`의 `productId`로 Stock 행을 찾아 `quantity`만큼 가산(`Stock.restore(amount)` 호출). 항목별 별도 트랜잭션 (현 MVP) — 부분 실패 시 운영 로그 + 수동 처리.
 
 ---
 
@@ -766,9 +815,9 @@ classDiagram
         <<Facade>>
         -orderService: OrderService
         -paymentService: PaymentService
-        -productService: ProductService
+        -stockService: StockService
         -paymentGateway: PaymentGateway
-        조율순서 검증→PendingPayment→PG호출→Order상태전이
+        조율순서 검증→PendingPayment→PG호출→Order상태전이→실패시StockService.restoreStock
         +pay(userId, orderId, method, amount) PaymentResultInfo
     }
 
@@ -790,7 +839,7 @@ classDiagram
     PaymentService ..> PaymentRepository
     PaymentFacade ..> PaymentService
     PaymentFacade ..> OrderService : confirmOrder / cancelOrder
-    PaymentFacade ..> ProductService : restoreStock (결제 실패 보상)
+    PaymentFacade ..> StockService : restoreStock (결제 실패 보상)
     PaymentFacade ..> PaymentGateway : 외부 PG 호출 (트랜잭션 외부)
     PaymentFacade ..> PaymentResultInfo : 생성
 ```
@@ -801,7 +850,7 @@ classDiagram
 > 3. `PaymentService.createPendingPayment` — 짧은 쓰기 트랜잭션
 > 4. `PaymentGateway.request` — **트랜잭션 외부** (외부 I/O)
 > 5-a. (성공) `PaymentService.markSucceeded` + `OrderService.confirmOrder` — 별 트랜잭션
-> 5-b. (실패) `PaymentService.markFailed` + `OrderService.cancelOrder` + `ProductService.restoreStock` — 별 트랜잭션 (보상)
+> 5-b. (실패) `PaymentService.markFailed` + `OrderService.cancelOrder` + `StockService.restoreStock` — 별 트랜잭션 (보상)
 
 ---
 
@@ -826,6 +875,7 @@ classDiagram
     class UserService { <<Service>> }
     class BrandService { <<Service>> }
     class ProductService { <<Service>> }
+    class StockService { <<Service>> }
     class LikeService { <<Service>> }
     class OrderService { <<Service>> }
     class PaymentService { <<Service>> }
@@ -837,20 +887,23 @@ classDiagram
 
     AdminBrandFacade ..> BrandService
     AdminBrandFacade ..> ProductService : cascade 소프트 삭제 조율
+    AdminBrandFacade ..> StockService : cascade 소프트 삭제 조율
     AdminBrandFacade ..> LikeService : cascade 소프트 삭제 조율
 
     AdminProductFacade ..> BrandService : brand ACTIVE 확인
     AdminProductFacade ..> ProductService
+    AdminProductFacade ..> StockService : 등록 시 initialQuantity로 Stock 생성
 
     LikeFacade ..> LikeService
     LikeFacade ..> ProductService : likeCount 증감 조율
 
-    OrderFacade ..> ProductService : 재고 확인·차감 조율
+    OrderFacade ..> ProductService : 상품 조회·스냅샷
+    OrderFacade ..> StockService : 재고 확인·차감 조율
     OrderFacade ..> OrderService
 
     PaymentFacade ..> OrderService : 상태 전이 조율
     PaymentFacade ..> PaymentService : 결제 영속화
-    PaymentFacade ..> ProductService : 결제 실패 시 재고 복구
+    PaymentFacade ..> StockService : 결제 실패 시 재고 복구
     PaymentFacade ..> PaymentGateway : 외부 PG 호출
 
     AdminOrderFacade ..> OrderService
@@ -870,6 +923,7 @@ classDiagram
     class UserRepository { <<interface>> }
     class BrandRepository { <<interface>> }
     class ProductRepository { <<interface>> }
+    class StockRepository { <<interface>> }
     class LikeRepository { <<interface>> }
     class OrderRepository { <<interface>> }
     class PaymentRepository { <<interface>> }
@@ -886,6 +940,10 @@ classDiagram
     class ProductRepositoryImpl {
         <<infrastructure>>
         -productJpaRepository: ProductJpaRepository
+    }
+    class StockRepositoryImpl {
+        <<infrastructure>>
+        -stockJpaRepository: StockJpaRepository
     }
     class LikeRepositoryImpl {
         <<infrastructure>>
@@ -909,6 +967,7 @@ classDiagram
     class UserJpaRepository { <<JpaRepository>> }
     class BrandJpaRepository { <<JpaRepository>> }
     class ProductJpaRepository { <<JpaRepository>> }
+    class StockJpaRepository { <<JpaRepository>> }
     class LikeJpaRepository { <<JpaRepository>> }
     class OrderJpaRepository { <<JpaRepository>> }
     class OrderItemJpaRepository { <<JpaRepository>> }
@@ -917,6 +976,7 @@ classDiagram
     UserRepositoryImpl ..|> UserRepository : 구현
     BrandRepositoryImpl ..|> BrandRepository : 구현
     ProductRepositoryImpl ..|> ProductRepository : 구현
+    StockRepositoryImpl ..|> StockRepository : 구현
     LikeRepositoryImpl ..|> LikeRepository : 구현
     OrderRepositoryImpl ..|> OrderRepository : 구현
     PaymentRepositoryImpl ..|> PaymentRepository : 구현
@@ -925,6 +985,7 @@ classDiagram
     UserRepositoryImpl ..> UserJpaRepository : 위임
     BrandRepositoryImpl ..> BrandJpaRepository : 위임
     ProductRepositoryImpl ..> ProductJpaRepository : 위임
+    StockRepositoryImpl ..> StockJpaRepository : 위임
     LikeRepositoryImpl ..> LikeJpaRepository : 위임
     OrderRepositoryImpl ..> OrderJpaRepository : 위임
     OrderRepositoryImpl ..> OrderItemJpaRepository : 위임
@@ -939,11 +1000,13 @@ classDiagram
 
 | 항목                   | 결정 내용                                                                                                                                                        |
 |------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 크로스 애그리거트 참조 | ID(Long)로만 참조. `Product.brandId`, `OrderItem.productId`, `LikeModel.userId·productId`, `PaymentModel.orderId` 모두 값 참조. 직접 객체 참조 금지              |
-| Brand·Product 분리     | 두 개의 독립 Aggregate. `Product.reduceStock()`·`incrementLikeCount()`는 Brand 불필요. cascade 삭제는 `AdminBrandFacade`가 Facade 레이어에서 조율                |
+| 크로스 애그리거트 참조 | ID(Long)로만 참조. `Product.brandId`, `Stock.productId`, `OrderItem.productId`, `LikeModel.userId·productId`, `PaymentModel.orderId` 모두 값 참조. 직접 객체 참조 금지              |
+| Brand·Product·Stock 분리 | 세 개의 독립 Aggregate. Product는 카탈로그(도서 정보), Stock은 창고 실수량 책임. 차감/복구 트랜잭션이 Product 행을 잠그지 않음. cascade 삭제는 `AdminBrandFacade`/`AdminProductFacade`가 Facade 레이어에서 조율 |
 | `Price` 공유           | Brand·Product 컨텍스트와 Order 컨텍스트가 공유하는 값 객체                                                                                                       |
+| `Quantity` 공유        | Stock과 OrderItem이 공유하는 값 객체. 0 이상 불변식                                                                                                              |
 | `likeCount` 변경 책임  | Like 컨텍스트 소유. `LikeFacade`가 `LikeService` + `ProductService` 두 Service를 조율                                                                            |
-| `stock` 차감 책임      | `ProductModel`이 보유하나 차감 호출은 `OrderFacade`가 `ProductService`를 통해 수행. 결제 실패 시 복구는 `PaymentFacade` → `ProductService.restoreStock`           |
+| `Stock.quantity` 차감 책임 | `StockModel`이 보유. 차감 호출은 `OrderFacade` → `StockService.reduceStock`. 결제 실패 복구는 `PaymentFacade` → `StockService.restoreStock`. 부족 시 도메인에서 `재고가 부족합니다.` 예외 |
+| 재고 변동 이력         | **MVP 범위 외 확장 포인트**. 감사·정산 요건 발생 시 `stock_movements` 별도 테이블 도입 (`reduce()`/`restore()` 이중 쓰기로 전환)                                  |
 | 스냅샷                 | `OrderItemModel`이 `productNameSnapshot` · `unitPriceSnapshot`을 직접 보유. 이후 `ProductModel` 변경 무관                                                        |
 | Payment 위치           | Order 내부 엔티티(안 B)지만 별도 패키지·테이블 분리. 명명은 안 A 호환 (`PaymentFacade`/`Service`/`Repository`/`Gateway`). 전환 시 클래스명 변경 0건 (결정 2)      |
 | 외부 시스템 격리       | `PaymentGateway` 헥사고날 포트. infrastructure 어댑터(`TossPgAdapter` 등)가 구현. 도메인은 PG 종류를 모름                                                         |
@@ -960,6 +1023,7 @@ classDiagram
 |---------------------------------|-----------------------------------------------------|--------------------------------|--------------------------------|----------------------------|
 | `BrandModel`                    | 소프트 삭제                                         | `status=DELETED` + `deletedAt` | 연결된 Order 없을 때 하드 삭제 | 과거 주문 브랜드 출처 추적 |
 | `ProductModel`                  | 소프트 삭제                                         | `status=DELETED` + `deletedAt` | 연결된 Order 없을 때 하드 삭제 | 주문 스냅샷 참조 무결성    |
+| `StockModel`                    | cascade 소프트 삭제                                 | `deletedAt`                    | Product 삭제 시 함께 처리      | Product 1:1 동기화         |
 | `LikeModel`                     | 유저 토글: **하드 삭제** / cascade: **소프트 삭제** | cascade 시 `deletedAt` 세팅    | 상품 삭제 시 일괄 처리         | 집계 정합성 유지           |
 | `OrderModel` / `OrderItemModel` | **삭제 불가**                                       | —                              | 영구 보존                      | 회계·법적 증거 자료        |
 | `PaymentModel`                  | **삭제 불가**                                       | —                              | 영구 보존                      | PG 거래 감사·정산          |
@@ -969,6 +1033,7 @@ classDiagram
 ```
 AdminBrandFacade.deleteBrand(brandId)
   → ProductService.softDeleteAllByBrandId(brandId)   ← Product DELETED + deletedAt
+  → StockService.softDeleteByProductIds(productIds)  ← StockModel deletedAt 세팅
   → LikeService.softDeleteByProductIds(productIds)   ← LikeModel deletedAt 세팅
   → BrandService.softDeleteBrand(brandModel)          ← Brand DELETED + deletedAt
 ```
