@@ -1,6 +1,6 @@
 package com.loopers.domain.coupon
 
-import org.assertj.core.api.Assertions
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import java.time.LocalDateTime
@@ -28,8 +28,8 @@ class CouponModelTest {
         val result2 = coupon.discount(20000.0)
 
         // then
-        Assertions.assertThat(result1).isEqualTo(5000.0)
-        Assertions.assertThat(result1).isEqualTo(result2)
+        assertThat(result1).isEqualTo(5000.0)
+        assertThat(result1).isEqualTo(result2)
     }
 
     @DisplayName("정률(RATE) 쿠폰은 주문 금액에 따라 할인 금액을 반환한다")
@@ -53,8 +53,46 @@ class CouponModelTest {
         val result3 = coupon.discount(12345.0)
 
         // then
-        Assertions.assertThat(result1).isNotEqualTo(result2)
-        Assertions.assertThat(result2).isEqualTo(18000.0)
-        Assertions.assertThat(result3).isNotEqualTo(11110.5)
+        assertThat(result1).isNotEqualTo(result2)
+        assertThat(result2).isEqualTo(18000.0)
+        assertThat(result3).isNotEqualTo(11110.5)
+    }
+
+    @DisplayName("만료일이 현재보다 과거이면 isExpired 는 true 를 반환한다")
+    @Test
+    fun isExpiredTrueTest() {
+        // given
+        val coupon = CouponModel.of(
+            name = "쿠폰",
+            type = CouponType.RATE,
+            value = 10.0,
+            minOrderAmount = 10000.0,
+            expiredAt = ZonedDateTime.now().minusDays(1)
+        )
+
+        // when
+        val result = coupon.isExpired(ZonedDateTime.now())
+
+        // then
+        assertThat(result).isTrue()
+    }
+
+    @DisplayName("만료일이 현재보다 미래이면 isExpired 는 false 를 반환한다")
+    @Test
+    fun isExpiredFalseTest() {
+        // given
+        val coupon = CouponModel.of(
+            name = "쿠폰",
+            type = CouponType.RATE,
+            value = 10.0,
+            minOrderAmount = 10000.0,
+            expiredAt = ZonedDateTime.now().plusDays(1)
+        )
+
+        // when
+        val result = coupon.isExpired(ZonedDateTime.now())
+
+        // then
+        assertThat(result).isFalse()
     }
 }

@@ -18,4 +18,7 @@ class UserCouponRepositoryImpl(
 
     override fun findByUserId(userId: Long): List<UserCouponModel> =
         userCouponJpaRepository.findByUserId(userId)
+
+    override fun save(userCouponModel: UserCouponModel): UserCouponModel =
+        userCouponJpaRepository.save(userCouponModel)
 }

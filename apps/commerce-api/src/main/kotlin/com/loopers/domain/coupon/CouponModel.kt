@@ -44,6 +44,13 @@ class CouponModel private constructor(
         return floor(raw.coerceIn(0.0, orderAmount))
     }
 
+    fun update(name: String, expiredAt: ZonedDateTime) {
+        this.name = name
+        this.expiredAt = expiredAt
+    }
+
+    fun isExpired(now: ZonedDateTime): Boolean = this.expiredAt.isBefore(now)
+
     companion object {
         fun of(
             name: String,

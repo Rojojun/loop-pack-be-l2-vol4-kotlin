@@ -1,5 +1,6 @@
 package com.loopers.domain.coupon
 
+import com.loopers.domain.user.UserModel
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Component
 
@@ -15,4 +16,8 @@ class UserCouponService(
 
     fun getAllByCouponId(couponId: Long, pageable: Pageable) =
         userCouponRepository.findAllByCouponId(couponId, pageable)
+
+    fun issueCoupon(userId: Long, coupon: CouponModel) =
+        UserCouponModel.of(coupon, userId)
+            .let { userCouponRepository.save(it) }
 }

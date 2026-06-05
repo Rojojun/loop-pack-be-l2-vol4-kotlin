@@ -35,6 +35,12 @@ class UserCouponModel private constructor(
     var usedAt: ZonedDateTime? = null
         protected set
 
+    fun statusAt(now: ZonedDateTime): CouponStatus = when {
+        this.status == CouponStatus.USED -> CouponStatus.USED
+        coupon.isExpired(now) -> CouponStatus.EXPIRED
+        else -> CouponStatus.AVAILABLE
+    }
+
     fun use() {
         if (status != CouponStatus.AVAILABLE) {
             throw CoreException(ErrorType.CONFLICT, "이미 사용한 쿠폰입니다.")
