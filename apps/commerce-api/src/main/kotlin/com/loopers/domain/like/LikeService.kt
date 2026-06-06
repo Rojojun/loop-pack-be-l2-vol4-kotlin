@@ -39,6 +39,7 @@ class LikeService(
     }
 
     fun getLikeByUserId(userId: Long): List<LikeModel> {
-        return likeRepository.findAllByUserId(userId)
+        return likeRepository.
+        findAllByUserId(userId)
     }
 }

@@ -1,5 +1,7 @@
 package com.loopers.application.order
 
+import com.loopers.domain.coupon.UserCouponService
+import com.loopers.domain.coupon.applyCoupon
 import com.loopers.domain.order.toOrderItems
 import com.loopers.domain.order.OrderService
 import com.loopers.domain.product.ProductService
@@ -16,12 +18,21 @@ class OrderFacade(
     private val stockService: StockService,
     private val productService: ProductService,
     private val userService: UserService,
+    private val userCouponService: UserCouponService,
 ) {
     @Transactional
-    fun placeOrder(loginId: String, productQuantityPairs: List<Pair<Long, Int>>): OrderInfo {
+    fun placeOrder(loginId: String, productQuantityPairs: List<Pair<Long, Int>>, couponId: Long? = null): OrderInfo {
         val user = userService.getByLoginId(loginId)
         val productIds = productQuantityPairs.map { it.first }
         val productsById = productService.getProductsByIds(productIds).associateBy { it.id }
+
+        val items = toOrderItems(productQuantityPairs, productsById)
+        val totalAmount = items.sumOf { it.totalPrice() }
+
+        val discountAmount = couponId?.let {
+            val userCoupon = userCouponService.getWithLockById(it)
+            applyCoupon(userCoupon, user.id, totalAmount, ZonedDateTime.now())
+        } ?: 0.0
 
         val stocksByProducts = stockService.findWithLockByProductIdIn(productIds)
             .associateBy { it.productId }
@@ -31,8 +42,7 @@ class OrderFacade(
                 .let { stockService.reduceStock(it, quantity) }
         }
 
-        val items = toOrderItems(productQuantityPairs, productsById)
-        val orderModel = orderService.createOrder(user.id, items)
+        val orderModel = orderService.createOrder(user.id, items, couponId, discountAmount)
 
         return OrderInfo(orderModel.id)
     }

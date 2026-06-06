@@ -35,16 +35,6 @@ class UserCouponModelTest {
             .isInstanceOf(CoreException::class.java)
     }
 
-    @DisplayName("만료된 쿠폰은 isUsable = false")
-    @Test
-    fun isUsableFalseTest() {
-        // given
-        val userCoupon = UserCouponModel.of(coupon(ZonedDateTime.now().minusDays(1)), 1L)
-
-        // when then
-        Assertions.assertThat(userCoupon.isUsable(2L)).isFalse
-    }
-
     @DisplayName("statusAt 은 사용 여부와 만료 여부에 따라 USED·EXPIRED·AVAILABLE 을 반환한다")
     @TestFactory
     fun statusAt(): List<DynamicTest> {

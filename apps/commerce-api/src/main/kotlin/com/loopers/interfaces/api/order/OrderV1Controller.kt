@@ -24,12 +24,15 @@ class OrderV1Controller(
     override fun placeOrder(
         @RequestHeader("X-Loopers-LoginId") loginId: String,
         @RequestBody @Valid request: OrderV1Dto.PlaceOrderRequest,
-    ): ApiResponse<OrderV1Dto.OrderResponse> =
-        request.items
-            .map { it.productId to it.quantity }
-            .let { orderFacade.placeOrder(loginId, it) }
-            .let { OrderV1Dto.OrderResponse.from(it) }
-            .let { ApiResponse.success(it) }
+    ): ApiResponse<OrderV1Dto.OrderResponse> {
+        val info = request.let { orderFacade.placeOrder(
+            loginId = loginId,
+            couponId = it.couponId,
+            productQuantityPairs = it.items.map { value -> value.productId to value.quantity }
+        ) }
+        val response = OrderV1Dto.OrderResponse.from(info)
+        return ApiResponse.success(response)
+    }
 
     @GetMapping
     override fun findOrders(

@@ -4,6 +4,8 @@ import com.loopers.domain.BaseEntity
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
@@ -26,11 +28,11 @@ class UserCouponModel private constructor(
     var userId: Long = userId
         protected set
 
+    @Enumerated(EnumType.STRING)
     var status: CouponStatus = status
         protected set
 
     var issuedAt: ZonedDateTime = issuedAt
-        protected set
 
     var usedAt: ZonedDateTime? = null
         protected set
@@ -48,9 +50,6 @@ class UserCouponModel private constructor(
         this.status = CouponStatus.USED
         this.usedAt = ZonedDateTime.now()
     }
-
-    fun isUsable(userId: Long): Boolean =
-        this.userId == userId && this.status == CouponStatus.AVAILABLE
 
     companion object {
         fun of(coupon: CouponModel, userId: Long): UserCouponModel =

@@ -2,6 +2,8 @@ package com.loopers.domain.coupon
 
 import com.loopers.domain.BaseEntity
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.Table
 import java.time.ZonedDateTime
 import kotlin.math.floor
@@ -18,6 +20,7 @@ class CouponModel private constructor(
     var name: String = name
         protected set
 
+    @Enumerated(EnumType.STRING)
     var type: CouponType = type
         protected set
 
@@ -34,7 +37,7 @@ class CouponModel private constructor(
         orderAmount >= this.minOrderAmount && now.isBefore(this.expiredAt)
 
     fun discount(orderAmount: Double): Double {
-        if (orderAmount <= minOrderAmount) {
+        if (orderAmount < minOrderAmount) {
             throw IllegalArgumentException("orderAmount must be greater than minOrderAmount $minOrderAmount")
         }
         val raw = when (this.type) {

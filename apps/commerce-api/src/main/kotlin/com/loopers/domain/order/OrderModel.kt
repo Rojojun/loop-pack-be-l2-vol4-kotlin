@@ -15,6 +15,9 @@ class OrderModel private constructor (
     userId: Long,
     status: OrderStatus,
     orderedAt: ZonedDateTime,
+    couponId: Long?,
+    discountAmount: Double,
+    finalAmount: Double,
 ): BaseEntity() {
     var userId: Long = userId
         protected set
@@ -23,6 +26,15 @@ class OrderModel private constructor (
         protected set
 
     var orderedAt = orderedAt
+        protected set
+
+    var couponId: Long? = couponId
+        protected set
+
+    var discountAmount: Double = discountAmount
+        protected set
+
+    var finalAmount: Double = finalAmount
         protected set
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "order", cascade = [CascadeType.ALL], orphanRemoval = true)
@@ -48,9 +60,16 @@ class OrderModel private constructor (
             .also { it.assignTo(this) }
 
     companion object {
-        fun of(userId: Long, items: List<OrderItemModel>): OrderModel =
+        fun of(userId: Long, items: List<OrderItemModel>, couponId: Long? = null, discountAmount: Double = 0.0): OrderModel =
             items.ensure(OrderItemsNotEmpty)
-                .run { OrderModel(userId, OrderStatus.PENDING, ZonedDateTime.now()) }
+                .run { OrderModel(
+                    userId = userId,
+                    status = OrderStatus.PENDING,
+                    orderedAt = ZonedDateTime.now(),
+                    couponId = couponId,
+                    discountAmount = discountAmount,
+                    finalAmount = (items.sumOf { it.totalPrice() } - discountAmount).coerceAtLeast(0.0) ,
+                ) }
                 .also { order -> items.forEach { order.addItem(it) } }
     }
 }

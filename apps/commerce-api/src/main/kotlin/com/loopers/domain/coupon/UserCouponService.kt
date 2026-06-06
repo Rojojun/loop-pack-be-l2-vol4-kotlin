@@ -1,6 +1,6 @@
 package com.loopers.domain.coupon
 
-import com.loopers.domain.user.UserModel
+import com.loopers.support.function.orThrowNotFound
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Component
 
@@ -8,11 +8,11 @@ import org.springframework.stereotype.Component
 class UserCouponService(
     private val userCouponRepository: UserCouponRepository
 ) {
-    fun getUserCouponsBy(couponId: Long) =
-        userCouponRepository.findAllByCouponId(couponId)
-
     fun getByUserId(userId: Long) =
         userCouponRepository.findByUserId(userId)
+
+    fun getWithLockById(id: Long): UserCouponModel =
+        userCouponRepository.findWithLockById(id) orThrowNotFound "쿠폰을 찾을 수 없습니다."
 
     fun getAllByCouponId(couponId: Long, pageable: Pageable) =
         userCouponRepository.findAllByCouponId(couponId, pageable)

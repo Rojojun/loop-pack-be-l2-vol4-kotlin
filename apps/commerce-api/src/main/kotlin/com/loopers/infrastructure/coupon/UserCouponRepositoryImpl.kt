@@ -10,14 +10,14 @@ import org.springframework.stereotype.Component
 class UserCouponRepositoryImpl(
     private val userCouponJpaRepository: UserCouponJpaRepository
 ) : UserCouponRepository {
-    override fun findAllByCouponId(couponId: Long): List<UserCouponModel> =
-        userCouponJpaRepository.findAllByCoupon_Id(couponId)
-
     override fun findAllByCouponId(couponId: Long, pageable: Pageable): Page<UserCouponModel> =
         userCouponJpaRepository.findAllByCoupon_Id(couponId, pageable)
 
     override fun findByUserId(userId: Long): List<UserCouponModel> =
         userCouponJpaRepository.findByUserId(userId)
+
+    override fun findWithLockById(id: Long): UserCouponModel? =
+        userCouponJpaRepository.findWithLockById(id)
 
     override fun save(userCouponModel: UserCouponModel): UserCouponModel =
         userCouponJpaRepository.save(userCouponModel)

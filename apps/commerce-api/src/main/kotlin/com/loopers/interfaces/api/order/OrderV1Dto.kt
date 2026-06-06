@@ -30,6 +30,7 @@ class OrderV1Dto {
     }
 
     data class PlaceOrderRequest(
+        val couponId:Long? = null,
         @field:NotEmpty
         @field:Valid
         val items: List<OrderItemRequest>,
