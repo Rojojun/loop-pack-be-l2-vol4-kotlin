@@ -18,6 +18,8 @@ data class OrderSummaryInfo(
 data class OrderDetailInfo(
     val orderId: Long,
     val totalPrice: Double,
+    val discountAmount: Double,
+    val finalAmount: Double,
     val status: OrderStatus,
     val orderedAt: ZonedDateTime,
     val items: List<OrderItemInfo>,

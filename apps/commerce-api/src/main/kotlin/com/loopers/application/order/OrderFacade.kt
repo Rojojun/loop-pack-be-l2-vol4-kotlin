@@ -80,6 +80,8 @@ class OrderFacade(
         return OrderDetailInfo(
             orderId = order.id,
             totalPrice = order.totalPrice(),
+            discountAmount = order.discountAmount,
+            finalAmount = order.finalAmount,
             status = order.status,
             orderedAt = order.orderedAt,
             items = orderItemInfos,
