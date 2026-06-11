@@ -42,4 +42,13 @@ class InMemoryLikeRepository : LikeRepository {
 
     override fun findAllByUserId(userId: Long): List<LikeModel> =
         data.values.filter { it.userId == userId }
+
+    override fun like(userId: Long, productId: Long): LikeResult {
+        val existing = data.values.firstOrNull { it.userId == userId && it.productId == productId }
+        return when {
+            existing != null && existing.available() -> LikeResult.AlreadyLiked   // 이미 active → 멱등 no-op
+            existing != null -> { existing.like(); LikeResult.Liked }             // soft-delete된 row 복원
+            else -> { save(LikeModel.of(userId, productId)); LikeResult.Liked }    // 신규
+        }
+    }
 }

@@ -14,7 +14,6 @@ import com.loopers.infrastructure.product.ProductJpaRepository
 import com.loopers.infrastructure.user.UserJpaRepository
 import com.loopers.utils.DatabaseCleanUp
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -69,7 +68,6 @@ class LikeConcurrencyTest @Autowired constructor(
         assertThat(likeService.getLikeCount(product.id)).isEqualTo(userCount)
     }
 
-    @Disabled("좋아요 중복 방지는 UK가 필요(phantom insert는 락으로 불가). UK 도입 보류 결정 — 결함 재현용으로 보존")
     @DisplayName("같은 유저가 같은 상품에 동시에 좋아요를 여러 번 눌러도 좋아요 수는 1이다.")
     @Test
     fun concurrentLikes_fromSameUser_isIdempotent() {

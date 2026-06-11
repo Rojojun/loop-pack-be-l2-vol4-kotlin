@@ -58,7 +58,7 @@ internal class LikeServiceIntegrationTest @Autowired constructor(
         val reAdded = likeService.addLike(userId, productId)
 
         // then : 같은 row 가 복구되어 available == true
-        assertThat(reAdded).isTrue
+        assertThat(reAdded).isEqualTo(LikeResult.Liked)
         val found = likeRepository.findByUserIdAndProductId(userId, productId)
         assertThat(found).isNotNull
         assertThat(found!!.available()).isTrue

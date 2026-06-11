@@ -22,16 +22,8 @@ class LikeService(
             .mapValues { LikeCount(it.value) }
     }
 
-    fun addLike(userId: Long, productId: Long): Boolean {
-        val existValue = likeRepository.findByUserIdAndProductId(userId, productId)
-        val likeModel = existValue ?: LikeModel.of(userId, productId)
-        val isNewLikeModel = existValue == null || !existValue.available()
-
-        likeModel.like()
-        likeRepository.save(likeModel)
-
-        return isNewLikeModel
-    }
+    fun addLike(userId: Long, productId: Long): LikeResult =
+        likeRepository.like(userId, productId)
 
     fun remove(userId: Long, productId: Long) {
         val likeModel = likeRepository.findByUserIdAndProductId(userId, productId) ?: return

@@ -12,4 +12,6 @@ interface LikeRepository {
     fun findByUserIdAndProductId(userId: Long, productId: Long): LikeModel?
 
     fun findAllByUserId(userId: Long): List<LikeModel>
+
+    fun like(userId: Long, productId: Long): LikeResult
 }

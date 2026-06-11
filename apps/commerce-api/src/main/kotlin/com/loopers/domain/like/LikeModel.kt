@@ -3,10 +3,14 @@ package com.loopers.domain.like
 import com.loopers.domain.BaseEntity
 import jakarta.persistence.Entity
 import jakarta.persistence.Table
+import jakarta.persistence.UniqueConstraint
 import java.time.ZonedDateTime
 
 @Entity
-@Table(name = "likes")
+@Table(
+    name = "likes",
+    uniqueConstraints = [UniqueConstraint(name = "uk_like_user_product", columnNames = ["user_id", "product_id"])]
+)
 class LikeModel private constructor(
     userId: Long,
     productId: Long,
