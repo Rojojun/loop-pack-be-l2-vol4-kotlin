@@ -114,7 +114,7 @@ internal class LikeServiceTest {
     @DisplayName("좋아요를 등록할 때 (멱등 명세)")
     @Nested
     internal inner class AddLike {
-        @DisplayName("처음 등록하면 true 를 반환하고 available 좋아요가 1개가 된다.")
+        @DisplayName("처음 등록하면 LikeResult.Liked 를 반환하고 available 좋아요가 1개가 된다.")
         @Test
         fun newLike() {
             val created = likeService.addLike(1L, 1L)
@@ -123,7 +123,7 @@ internal class LikeServiceTest {
             assertThat(likeService.getLikeCountGroupByProductId(listOf(1L))[ProductId(1L)]).isEqualTo(LikeCount(1))
         }
 
-        @DisplayName("이미 좋아요한 상품에 다시 등록하면 false 를 반환한다. (멱등 no-op)")
+        @DisplayName("이미 좋아요한 상품에 다시 등록하면 LikeResult.AlreadyLiked 를 반환한다. (멱등 no-op)")
         @Test
         fun duplicateLike() {
             likeService.addLike(1L, 1L)
@@ -131,7 +131,7 @@ internal class LikeServiceTest {
             assertThat(likeService.addLike(1L, 1L)).isEqualTo(LikeResult.AlreadyLiked)
         }
 
-        @DisplayName("좋아요 취소 후 다시 등록하면 true 를 반환한다. (재등록 가능)")
+        @DisplayName("좋아요 취소 후 다시 등록하면 LikeResult.Liked 를 반환한다. (재등록 가능)")
         @Test
         fun reAddAfterRemove() {
             likeService.addLike(1L, 1L)
