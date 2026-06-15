@@ -13,6 +13,10 @@ services:
       - MYSQL_COLLATE=utf8mb4_general_ci
     volumes:
       - mysql-8-data:/var/lib/mysql
+    command:
+      - --slow_query_log=ON
+      - --long_query_time=0
+      - --log_output=TABLE
 
   redis-master:
     image: redis:7.0
