@@ -13,8 +13,8 @@ class StockService(
     fun getStockById(productId: Long): StockModel =
         stockRepository.findStockByProductId(productId) orThrowNotFound "해당하는 상품이 재고에 없습니다."
 
-    fun findStocksByProductIdIn(productIds: List<Long>): List<StockModel> =
-        stockRepository.findStocksByProductIdIn(productIds)
+    fun findWithLockByProductIdIn(productIds: List<Long>): List<StockModel> =
+        stockRepository.findWithLockByProductIdIn(productIds)
 
     fun reduceStock(stockModel: StockModel, quantity: Int): Unit =
         stockModel.reduce(quantity)

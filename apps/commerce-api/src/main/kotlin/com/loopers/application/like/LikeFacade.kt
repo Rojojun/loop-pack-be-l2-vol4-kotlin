@@ -1,5 +1,6 @@
 package com.loopers.application.like
 
+import com.loopers.domain.like.LikeResult
 import com.loopers.domain.like.LikeService
 import com.loopers.domain.like.ProductId
 import com.loopers.domain.product.ProductService
@@ -18,7 +19,7 @@ class LikeFacade(
     fun addLike(loginId: String, productId: Long): Boolean {
         val user = userService.getByLoginId(loginId)
         val product = productService.getProduct(productId)
-        return likeService.addLike(user.id, product.id)
+        return likeService.addLike(user.id, product.id) is LikeResult.Liked
     }
 
     /**

@@ -349,8 +349,11 @@ classDiagram
         -stockRepository: StockRepository
         +createStock(productId, initialQuantity) StockModel
         +getStockModelByProductId(productId) StockModel
-        +reduceStock(productId, quantity) void
-        없으면 throw 부족하면 throw
+        +findStocksByProductIdIn(productIds) List~StockModel~
+        비관적 락 FOR UPDATE 주문용
+        +reduceStock(stockModel, quantity) void
+        부족하면 throw 재고 부족
+        주의 현재 락이 공유메서드라 상품조회까지 오염 별도분리 권고
         +restoreStock(orderItems) void
         결제실패보상 항목별 별도트랜잭션
         +softDeleteByProductIds(productIds) void
@@ -851,6 +854,74 @@ classDiagram
 > 4. `PaymentGateway.request` — **트랜잭션 외부** (외부 I/O)
 > 5-a. (성공) `PaymentService.markSucceeded` + `OrderService.confirmOrder` — 별 트랜잭션
 > 5-b. (실패) `PaymentService.markFailed` + `OrderService.cancelOrder` + `StockService.restoreStock` — 별 트랜잭션 (보상)
+
+---
+
+## 6-1. Coupon 컨텍스트 — Template + UserCoupon 두 Aggregate
+
+담당: 운영이 할인 정책(`CouponTemplate`)을 정의하고, 유저가 발급받은 `UserCoupon`을 주문에 적용한다.  
+**할인 계산은 `CouponTemplate`(정책)**, **재사용 불가·상태는 `UserCoupon`(인스턴스)** 책임. 만료(`EXPIRED`)는 저장하지 않고 `expiredAt`으로 조회 시 파생한다.
+
+```mermaid
+classDiagram
+    direction TB
+
+    class CouponTemplate {
+        <<AggregateRoot>>
+        -name: String
+        -type: CouponType
+        -value: Double
+        -minOrderAmount: Double
+        -expiredAt: ZonedDateTime
+        정률 버림 정액 주문액상한 최종 0하한
+        +discount(orderAmount) Double
+        +of(...)$ CouponTemplate
+    }
+
+    class UserCoupon {
+        <<AggregateRoot>>
+        -templateId: Long
+        -userId: Long
+        -status: CouponStatus
+        -issuedAt: ZonedDateTime
+        -usedAt: ZonedDateTime
+        EXPIRED는 expiredAt으로 파생
+        +isUsable(now, userId, orderAmount) boolean
+        +use() void
+    }
+
+    class CouponType {
+        <<enum>>
+        FIXED
+        RATE
+    }
+    class CouponStatus {
+        <<enum>>
+        AVAILABLE
+        USED
+    }
+
+    class CouponService {
+        <<Service>>
+        +issue(userId, templateId) UserCoupon
+        +findMyCoupons(userId) List~UserCoupon~
+        +getForUpdate(userCouponId) UserCoupon
+        주문용 비관적 락 조회
+    }
+    class CouponTemplateService {
+        <<Service>>
+        어드민 템플릿 CRUD + 발급 내역
+    }
+
+    CouponTemplate "1" --> "N" UserCoupon : 발급
+    CouponTemplate --> CouponType
+    UserCoupon --> CouponStatus
+    UserCoupon ..> CouponTemplate : discount 계산 위임
+    CouponService ..> UserCoupon
+    CouponTemplateService ..> CouponTemplate
+```
+
+> **읽는 법**: ① 두 Aggregate 분리 — Template은 정책(불변 계산), UserCoupon은 상태(가변, 락 대상). ② `OrderFacade`가 주문 시 `CouponService.getForUpdate`로 `UserCoupon`을 잠그고 `use()` 호출 — 재고 락과 동일 패턴. ③ 할인 계산은 `UserCoupon`이 `CouponTemplate.discount()`에 위임(정책은 Template 소유).
 
 ---
 

@@ -5,5 +5,7 @@ interface StockRepository {
 
     fun findStocksByProductIdIn(productIds: List<Long>): List<StockModel>
 
+    fun findWithLockByProductIdIn(productIds: List<Long>): List<StockModel>
+
     fun save(stockModel: StockModel): StockModel
 }

@@ -2,16 +2,18 @@
 
 > **이 문서는 다른 팀원에게 설명이 필요한 복잡한 흐름만 다룬다.**  
 > 단순 CRUD·단건 조회·어드민 운영 API는 의도적으로 제외했다.  
-> 핵심은 **멱등 동작, 재고 차감, 외부 시스템 연동, 보상 트랜잭션** 5가지 흐름이다.
+> 핵심은 **멱등 동작, 재고 차감, 외부 시스템 연동, 보상 트랜잭션, 쿠폰 사용 동시성** 6가지 흐름이다.
 
 ---
 
 ## 트랜잭션 경계 정책
 
+> **갱신(ADR-0001):** 아래는 *단일 애그리거트* 작업의 기본 경계다. **주문·쿠폰처럼 여러 애그리거트를 정합성 있게 바꾸는 쓰기 유즈케이스는 Facade에 `@Transactional`을 두어 단일 트랜잭션으로 묶고, 경합 자원(재고·쿠폰)은 비관적 락(`FOR UPDATE`)으로 직렬화**한다 (§4·§6). 외부 호출(PG)이 없어 long-tx 문제가 없기 때문이다.
+
 ```
 interfaces (Controller)
    ↓ 호출
-application (Facade)        ← 트랜잭션 없음. Service 조율만 담당
+application (Facade)        ← (단일 애그리거트) 트랜잭션 없음, 조율만 / (주문·쿠폰) @Transactional
    ↓ 조율
 domain (Service)            ← @Transactional. DB 변경의 원자성 보장 단위
    ↓ 사용
@@ -25,7 +27,7 @@ infrastructure (RepositoryImpl) ← JPA 구현체
 - **외부 시스템 호출(PG)**: 트랜잭션 외부에서 수행. 응답 수신 후 별도 짧은 트랜잭션으로 상태 업데이트
 
 > 트랜잭션 경계를 Service 단위에 둔 이유: 외부 I/O(PG 호출)를 트랜잭션에 포함시키면 long-running transaction이 발생해 DB connection pool이 고갈된다.  
-> 다만 Facade에 트랜잭션이 없으므로 **여러 Service 호출 간 원자성은 자체적으로 보장되지 않는다** — 이 한계는 `📡 나아가며`에서 다룬다.
+> 단일 애그리거트 흐름(좋아요 등)은 Facade에 트랜잭션이 없어 Service 호출 간 원자성이 보장되지 않는다 — 이 한계는 `📡 나아가며`에서 다룬다. **주문·쿠폰은 Facade `@Transactional`로 이미 해결.**
 
 ---
 
@@ -61,7 +63,7 @@ infrastructure (RepositoryImpl) ← JPA 구현체
 
 ---
 
-## 시퀀스 목록 (5개 핵심 흐름)
+## 시퀀스 목록 (6개 핵심 흐름)
 
 | #   | 시퀀스                  | 왜 복잡한가 (강조 포인트)                                 |
 |-----|-------------------------|-----------------------------------------------------------|
@@ -70,6 +72,7 @@ infrastructure (RepositoryImpl) ← JPA 구현체
 | 3   | 좋아요 취소 (완전 멱등) | 미존재 시 no-op — REST PUT 시맨틱                         |
 | 4   | 주문 생성               | 다중 항목 재고 차감 + 스냅샷 + 한 건 실패 시 전체 실패    |
 | 5   | 결제 요청               | 외부 PG 연동 + 보상 트랜잭션(재고 복구) + Order 상태 전이 |
+| 6   | 쿠폰 적용 주문          | 쿠폰 재사용 불가(Lost Update) + 재고·쿠폰 락 순서 + 할인 스냅샷 |
 
 ---
 
@@ -314,94 +317,69 @@ sequenceDiagram
 
 ### 강조 포인트
 
-- **3단계 조율** (`OrderFacade`가 순차 진행):
-  1. **Step 1 — 상품 존재 확인**: 모든 항목의 상품을 먼저 조회 (한 건이라도 없으면 전체 실패)
-  2. **Step 2 — 재고 확인 및 차감**: `productModel.reduceStock(quantity)` — 한 건이라도 부족하면 전체 실패
-  3. **Step 3 — 주문 생성 + 스냅샷 저장**: `productNameSnapshot`, `unitPriceSnapshot` 영구 보존
-- **재고 동시성**: 동시 주문 시 재고 음수 방지 — 현재는 `UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?` 원자적 SQL. 분산 환경에서는 `📡 나아가며` §동시 주문 참조
-- **트랜잭션 경계 한계**: Facade에 트랜잭션 없으므로 Step 2 도중 실패 시 일부 상품만 재고 차감된 상태로 끝날 수 있음 — Step별 Service 트랜잭션은 원자적이지만 Step 간은 아님
+- **단일 트랜잭션 조율** (`OrderFacade.placeOrder`에 `@Transactional`):
+  1. 상품 존재·활성 확인 (한 건이라도 없으면 전체 실패)
+  2. **재고 비관적 락 + 차감**: `stocks` 행을 `FOR UPDATE`로 조회(`findStocksByProductIdIn`) 후 `StockModel.reduce(quantity)` — 한 건이라도 부족하면 전체 롤백
+  3. 주문 생성 + 스냅샷 저장(`productNameSnapshot`·`unitPriceSnapshot`)
+- **재고 동시성**: 동시 주문이 같은 재고를 차감해도 **비관적 락(`SELECT … FOR UPDATE`)**으로 직렬화 → Lost Update·음수 차단. 재고는 `products`와 분리된 `stocks` 테이블. (ADR-0001)
+- **원자성**: 재고 차감·주문 저장이 한 트랜잭션 → 어느 단계가 실패하면 **전부 롤백**(부분 차감 없음). 외부 호출이 없어 long-tx 문제 없음.
+- ⚠️ **현재 코드 이슈(검토 발견)**: `@Lock`이 *공유* 메서드 `findStocksByProductIdIn`에 달려 있어, 이를 사용하는 **상품 조회 경로(`ProductFacade`·`AdminProductFacade`)까지 `FOR UPDATE`가 걸린다.** → 주문 전용 **별도 락 메서드 분리** 필요 (§6 `findWithLockByProductIdIn` 패턴).
 
 ```mermaid
 sequenceDiagram
     actor User
     participant OC as OrderController
     participant OF as OrderFacade
+    participant US as UserService
     participant PS as ProductService
+    participant SS as StockService
     participant OS as OrderService
-    participant PR as ProductRepository
-    participant OR as OrderRepository
 
-    User->>OC: POST /api/v1/orders<br/>(인증 통과 후, userId)<br/>{items: [{productId, quantity}, ...]}
-    activate OC
+    User->>OC: POST /api/v1/orders<br/>(인증 후, loginId)<br/>{items: [{productId, quantity}, ...]}
+    OC->>OF: placeOrder(loginId, items)
 
-    OC->>OF: placeOrder(userId, items)
-    activate OF
+    rect rgb(245, 243, 255)
+        Note over OF,OS: 🔒 @Transactional (단일 트랜잭션)
 
-    Note over OF: R1: items 1개 이상 검증
-    alt items 비어있음
-        OF-->>OC: CoreException (EmptyOrderItems)
-        OC-->>User: 400 Bad Request
-    end
+        OF->>US: getByLoginId(loginId)
+        US-->>OF: User
 
-    rect rgb(224, 242, 254)
-        Note over OF,PR: Step 1 — 상품 존재 확인<br/>🔒 @Transactional(readOnly=true) per call — 항목마다 별도 트랜잭션
-        loop 각 OrderItem
-            OF->>PS: getProductModel(productId)
-            activate PS
-            PS->>PR: findById(productId)
-            activate PR
-            alt 상품 미존재
-                PR-->>PS: empty
-                PS-->>OF: CoreException (ProductNotFound)
-                OF-->>OC: 404 Not Found
-                OC-->>User: 404 Not Found
+        rect rgb(224, 242, 254)
+            Note over OF,PS: 상품 존재·활성 확인 (한 건이라도 없으면 전체 실패)
+            OF->>PS: getProductsByIds(productIds)
+            alt 상품 미존재/비활성
+                PS-->>OF: CoreException
+                OF-->>User: 404 / 400
             end
-            PR-->>PS: ProductModel {name, price, stock}
-            PS-->>OF: ProductModel
+            PS-->>OF: products
         end
-    end
 
-    Note over OF: ❗ Step 1 ↔ Step 2 트랜잭션 경계 — 사이에 외부 변경이 끼어들 수 있음
-
-    rect rgb(254, 243, 199)
-        Note over OF,PR: Step 2 — 재고 확인 및 차감 (R2, R3)<br/>🔒 @Transactional per call — 한 건이라도 실패 시 이미 차감된 재고는 롤백 안 됨
-        loop 각 ProductModel
-            OF->>PS: validateAndReduceStock(productModel, quantity)
-            activate PS
-            alt 재고 부족
-                PS-->>OF: CoreException (InsufficientStock)
-                OF-->>OC: 400 Bad Request
-                OC-->>User: 400 Bad Request
+        rect rgb(254, 243, 199)
+            Note over OF,SS: 재고 비관적 락 + 차감 (FOR UPDATE)
+            OF->>SS: findStocksByProductIdIn(productIds)  [FOR UPDATE]
+            SS-->>OF: 잠긴 Stock 목록
+            loop 각 (productId, quantity)
+                Note over OF: 재고 행 없음 → NOT_FOUND
+                OF->>SS: reduceStock(stock, quantity)
+                alt 재고 부족
+                    SS-->>OF: CoreException
+                    OF-->>User: 400 → 전체 롤백
+                end
             end
-            Note over PS: productModel.reduceStock(quantity)
-            PS->>PR: save(ProductModel)
-            activate PR
-            PR-->>PS: ok
-            deactivate PR
-            PS-->>OF: ok
-            deactivate PS
         end
-    end
 
-    Note over OF: ❗ Step 2 ↔ Step 3 트랜잭션 경계 — 재고 차감 후 주문 생성 실패 시 재고만 빠진 상태
+        rect rgb(220, 252, 231)
+            Note over OF,OS: 주문 생성 + 스냅샷 저장
+            OF->>OS: createOrder(userId, itemsWithSnapshots)
+            Note over OS: totalAmount = Σ(unitPriceSnapshot × quantity)<br/>status = PENDING
+            OS-->>OF: OrderModel {orderId}
+        end
 
-    rect rgb(220, 252, 231)
-        Note over OF,OR: Step 3 — 주문 생성 + 스냅샷 저장 (R4)<br/>🔒 @Transactional — OrderService.createOrder
-        OF->>OS: createOrder(userId, itemsWithSnapshots)
-        activate OS
-        Note over OS: OrderModel.of(userId,<br/>  [{productId, productNameSnapshot,<br/>    unitPriceSnapshot, quantity}])<br/>totalAmount = Σ(unitPriceSnapshot × quantity)<br/>status = PENDING
-        OS->>OR: save(OrderModel)
-        activate OR
-        OR-->>OS: OrderModel {orderId}
-        deactivate OR
-        OS-->>OF: OrderModel
-        deactivate OS
+        Note over OF,OS: 커밋 → 락 해제 (실패 시 전부 롤백)
     end
 
     OF-->>OC: OrderInfo {orderId}
-    deactivate OF
     OC-->>User: 201 Created {orderId}
-    deactivate OC
 ```
 
 ---
@@ -562,6 +540,74 @@ sequenceDiagram
 
 ---
 
+## 6. 쿠폰 적용 주문
+
+`POST /api/v1/orders` (couponId 포함) — 유저 인증
+
+> **이 흐름은 ADR-0001의 갱신된 동시성 정책을 따른다.** 주문은 `OrderFacade`에 `@Transactional`을 두고 재고·쿠폰을 **비관적 락(FOR UPDATE)**으로 직렬화한다 — 위 §1~5의 "Facade 무트랜잭션 + 항목별 Service 트랜잭션" 모델을 동시성 요건에 맞춰 갱신한 버전이다.
+
+### 강조 포인트
+
+- **재사용 불가 = Lost Update 문제**: 같은 쿠폰을 동시 2주문이 쓰면 둘 다 `AVAILABLE`을 보고 적용 → 비관적 락으로 직렬화, 2번째는 `USED`를 보고 실패.
+- **고정 락 순서 (쿠폰 → 재고)**: 한 트랜잭션이 쿠폰 행 + 재고 행들을 잠그므로, 전 트랜잭션이 동일 순서로 잠가야 교차 데드락이 없다. (같은 유저가 같은 상품을 연타하는 경계 케이스 대비)
+- **단일 트랜잭션**: 쿠폰 `USED` + 재고 차감 + 주문 저장이 한 트랜잭션 → 어느 하나 실패 시 전부 롤백(쿠폰도 `AVAILABLE`로 복원).
+- **할인 스냅샷**: 적용 전 금액·할인액·최종액을 주문에 영구 보존.
+- **검증 실패 = 주문 실패**: 미존재·타인 소유·`USED`·만료·최소주문금액 미달 → 주문 전체 실패.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant OC as OrderController
+    participant OF as OrderFacade
+    participant CS as CouponService
+    participant SS as StockService
+    participant OS as OrderService
+
+    User->>OC: POST /api/v1/orders<br/>(인증 후, userId)<br/>{items[], couponId?}
+    OC->>OF: placeOrder(userId, items, couponId)
+
+    rect rgb(245, 243, 255)
+        Note over OF,OS: 🔒 @Transactional (단일 트랜잭션)
+
+        rect rgb(254, 226, 226)
+            Note over OF,CS: ★락 순서(1) 쿠폰 먼저 — couponId 있을 때만
+            OF->>CS: getForUpdate(couponId)  [FOR UPDATE]
+            CS-->>OF: UserCoupon
+            Note over OF: isUsable 검증<br/>(소유·AVAILABLE·만료·minOrderAmount)
+            alt 검증 실패 (미존재·타인·USED·만료·최소금액 미달)
+                OF-->>OC: CoreException
+                OC-->>User: 400/403/404 → 주문 실패
+            end
+        end
+
+        rect rgb(254, 243, 199)
+            Note over OF,SS: ★락 순서(2) 재고 — productId 정렬/IN, FOR UPDATE
+            OF->>SS: findWithLockByProductIdIn(productIds) → reduce(qty)
+            alt 재고 부족
+                SS-->>OF: CoreException
+                OF-->>User: 400 → 주문 실패 (쿠폰 USED 롤백)
+            end
+        end
+
+        Note over OF: 할인 계산(template.discount)<br/>total / discount / final 스냅샷 산출
+        OF->>CS: userCoupon.use()  (AVAILABLE→USED)
+        OF->>OS: createOrder(userId, items, 금액 스냅샷, couponId)
+        OS-->>OF: OrderModel {orderId}
+        Note over OF,OS: 커밋 → 락 해제 (실패 시 전부 롤백)
+    end
+
+    OF-->>OC: OrderInfo {orderId, total, discount, final}
+    OC-->>User: 201 Created
+```
+
+### 읽는 법
+
+- 빨강(쿠폰)·노랑(재고) 박스가 **같은 보라(트랜잭션) 안**에 있다 → §1~5와 달리 Facade가 트랜잭션을 소유한다. 외부 호출이 없어 long-running transaction 문제는 없다.
+- 쿠폰을 재고보다 **먼저** 잠그는 고정 순서가 교차 데드락 방지의 핵심.
+- 같은 쿠폰 동시 사용은 빨강 박스의 FOR UPDATE로 직렬화 → 2번째 요청은 `isUsable`에서 `USED`를 보고 실패 = 재사용 불가 보장.
+
+---
+
 ## 📡 나아가며 — 현재 미해결 & 차기 대응
 
 > 모든 기능을 개발한 후 실제 서비스에서 마주칠 **동시성·멱등성·일관성·느린 조회·동시 주문** 이슈를 정리한다.  
@@ -573,8 +619,8 @@ sequenceDiagram
 
 | 단계   | 현재 설계                                                                           | 차기 대응                                                               |
 |--------|-------------------------------------------------------------------------------------|-------------------------------------------------------------------------|
-| MVP    | 원자적 UPDATE — `UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?` | —                                                                       |
-| 운영   | —                                                                                   | `SELECT ... FOR UPDATE` 비관적 락 또는 Redis 분산락 도입 검토           |
+| MVP    | **비관적 락** — `stocks` 행을 `SELECT … FOR UPDATE` + Facade `@Transactional` 단일 트랜잭션 (ADR-0001) | —                                                                       |
+| 운영   | —                                                                                   | 분산/고부하 시 Redis 분산락 또는 낙관적 락(`@Version`) 전환 검토         |
 | 고부하 | —                                                                                   | 재고 예약(Reservation) 패턴 — 주문 시 예약, 결제 성공 시 확정 (2-Phase) |
 
 ### B. 멱등성 — 중복 요청 방지
@@ -589,12 +635,12 @@ sequenceDiagram
 
 ### C. 일관성 — 트랜잭션 경계와 Saga
 
-**문제 상황**: Facade에 트랜잭션이 없어 여러 Service 호출 간 원자성이 보장되지 않음.
+**문제 상황**: 일부 흐름(좋아요 등)은 Facade에 트랜잭션이 없어 Service 호출 간 원자성이 보장되지 않음. (주문·쿠폰은 Facade `@Transactional`로 해결됨)
 
 | 흐름             | 현재 한계                                                                    | 차기 대응                                                                            |
 |------------------|------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
 | 좋아요 등록/취소 | `Like` 저장과 `likeCount` 증감이 별도 Service 트랜잭션 → 중간 실패 시 불일치 | DB 이벤트(`@TransactionalEventListener`) 또는 도메인 이벤트로 후처리 보장            |
-| 주문 생성        | Step 1·2·3이 별도 트랜잭션 → Step 2 도중 실패 시 일부 상품만 재고 차감       | 주문 생성을 단일 Service 트랜잭션으로 통합 또는 Saga                                 |
+| 주문 생성        | ✅ 해결 — Facade `@Transactional` 단일 트랜잭션으로 통합(재고+주문 원자적)   | (외부 결제 연동 시) Saga·Outbox로 확장                                              |
 | **결제**         | PG 호출 후 보상 트랜잭션 실패 시 재고/주문 상태 불일치                       | **Saga 패턴 + Outbox 이벤트** — `PaymentFailed` 이벤트 발행 후 재고 복구 비동기 처리 |
 
 ### D. 느린 조회 — 인덱스 설계
@@ -617,7 +663,7 @@ sequenceDiagram
 
 | 단계             | 전략                                                              |
 |------------------|-------------------------------------------------------------------|
-| MVP              | 원자적 UPDATE (A 참조) — 단일 인스턴스 환경에서 충분              |
-| 운영 (단일 DB)   | `SELECT ... FOR UPDATE` 또는 낙관적 락(`@Version`)                |
+| MVP              | **비관적 락 `SELECT … FOR UPDATE`** (A 참조) — 단일 DB 환경에서 충분 |
+| 운영 (단일 DB)   | 낙관적 락(`@Version`) — 충돌 드문 경우 처리량 유리                |
 | 운영 (분산 환경) | Redis `SETNX` 기반 상품별 분산락, 또는 재고 예약 패턴             |
 | 트래픽 폭증      | 주문 큐 도입 — Kafka/SQS로 비동기 처리, 동시성을 컨슈머 수로 제어 |

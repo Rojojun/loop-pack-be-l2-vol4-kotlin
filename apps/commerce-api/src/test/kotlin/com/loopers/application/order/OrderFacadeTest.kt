@@ -1,5 +1,7 @@
 package com.loopers.application.order
 
+import com.loopers.domain.coupon.InMemoryUserCouponRepository
+import com.loopers.domain.coupon.UserCouponService
 import com.loopers.domain.order.InMemoryOrderRepository
 import com.loopers.domain.order.OrderItemModel
 import com.loopers.domain.order.OrderService
@@ -31,7 +33,9 @@ internal class OrderFacadeTest {
     private val inMemoryOrderRepository = InMemoryOrderRepository()
     private val inMemoryProductRepository = InMemoryProductRepository()
     private val inMemoryStockRepository = InMemoryStockRepository()
+    private val inMemoryUserCouponRepository = InMemoryUserCouponRepository()
 
+    private val userCouponService = UserCouponService(inMemoryUserCouponRepository)
     private val userService = UserService(inMemoryUserRepository)
     private val orderService = OrderService(inMemoryOrderRepository)
     private val productService = ProductService(inMemoryProductRepository)
@@ -42,6 +46,7 @@ internal class OrderFacadeTest {
         stockService = stockService,
         productService = productService,
         userService = userService,
+        userCouponService = userCouponService,
     )
 
     private fun saveUser(loginId: String = "testId"): UserModel =
@@ -95,7 +100,7 @@ internal class OrderFacadeTest {
             val pairs = listOf(product1.id to 2, product2.id to 3)
 
             // when
-            val orderInfo = orderFacade.placeOrder(user.loginId, pairs)
+            val orderInfo = orderFacade.placeOrder(user.loginId, pairs,)
 
             // then
             assertThat(orderInfo).isNotNull()
@@ -121,7 +126,7 @@ internal class OrderFacadeTest {
             val pairs = listOf(product.id to 1)
 
             // when then
-            assertThatThrownBy { orderFacade.placeOrder("unknownLoginId", pairs) }
+            assertThatThrownBy { orderFacade.placeOrder("unknownLoginId", pairs,) }
                 .isInstanceOf(CoreException::class.java)
                 .hasMessage("유저의 아이디가 존재하지 않습니다.")
         }
@@ -138,7 +143,7 @@ internal class OrderFacadeTest {
             val pairs = listOf(999L to 1)
 
             // when then
-            assertThatThrownBy { orderFacade.placeOrder(user.loginId, pairs) }
+            assertThatThrownBy { orderFacade.placeOrder(user.loginId, pairs,) }
                 .isInstanceOf(CoreException::class.java)
                 .hasMessage("존재하지 않는 상품이 포함되어 있습니다.")
         }
@@ -153,7 +158,7 @@ internal class OrderFacadeTest {
             val pairs = listOf(product.id to 1)
 
             // when then
-            assertThatThrownBy { orderFacade.placeOrder(user.loginId, pairs) }
+            assertThatThrownBy { orderFacade.placeOrder(user.loginId, pairs,) }
                 .isInstanceOf(CoreException::class.java)
                 .hasMessage("판매 중인 상품이 아닙니다: ${product.id}")
         }
@@ -172,7 +177,7 @@ internal class OrderFacadeTest {
             val pairs = listOf(product.id to 5)
 
             // when then
-            assertThatThrownBy { orderFacade.placeOrder(user.loginId, pairs) }
+            assertThatThrownBy { orderFacade.placeOrder(user.loginId, pairs,) }
                 .isInstanceOf(CoreException::class.java)
                 .hasMessage("재고가 부족합니다.")
         }
@@ -187,7 +192,7 @@ internal class OrderFacadeTest {
             val pairs = listOf(product.id to 1)
 
             // when then
-            assertThatThrownBy { orderFacade.placeOrder(user.loginId, pairs) }
+            assertThatThrownBy { orderFacade.placeOrder(user.loginId, pairs,) }
                 .isInstanceOf(CoreException::class.java)
                 .hasMessage("재고 정보를 찾을 수 없습니다 : ${product.id}")
         }

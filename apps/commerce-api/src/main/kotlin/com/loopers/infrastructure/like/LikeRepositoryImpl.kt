@@ -2,7 +2,9 @@ package com.loopers.infrastructure.like
 
 import com.loopers.domain.like.LikeModel
 import com.loopers.domain.like.LikeRepository
+import com.loopers.domain.like.LikeResult
 import org.springframework.stereotype.Component
+import java.time.ZonedDateTime
 
 @Component
 class LikeRepositoryImpl(
@@ -25,4 +27,9 @@ class LikeRepositoryImpl(
 
     override fun findAllByUserId(userId: Long): List<LikeModel> =
         likeJpaRepository.findAllByUserId(userId)
+
+    override fun like(userId: Long, productId: Long): LikeResult {
+        val affected = likeJpaRepository.upsert(userId, productId, ZonedDateTime.now())
+        return if (affected != 0) LikeResult.Liked else LikeResult.AlreadyLiked
+    }
 }

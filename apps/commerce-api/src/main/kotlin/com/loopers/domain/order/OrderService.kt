@@ -12,8 +12,8 @@ import java.time.ZonedDateTime
 class OrderService(
     private val orderRepository: OrderRepository
 ) {
-    fun createOrder(userId: Long, items: List<OrderItemModel>): OrderModel =
-        OrderModel.of(userId, items)
+    fun createOrder(userId: Long, items: List<OrderItemModel>, couponId: Long? = null, discountAmount: Double = 0.0): OrderModel =
+        OrderModel.of(userId, items, couponId, discountAmount)
             .let { orderRepository.save(it) }
 
     fun deleteOrder(orderId: Long, userId: Long) =

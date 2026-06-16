@@ -12,7 +12,7 @@ import org.assertj.core.api.Assertions.assertThat
 
 internal class LikeModelTest {
 
-    @DisplayName("LikeModel.of 로 생성하면")
+    @DisplayName("LikeModel.from 로 생성하면")
     @Nested
     internal inner class Create {
         @DisplayName("전달한 userId, productId 가 그대로 세팅되고 likedAt 이 채워진다.")
