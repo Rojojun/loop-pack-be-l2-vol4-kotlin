@@ -4,10 +4,14 @@ import com.loopers.domain.BaseEntity
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
 import jakarta.persistence.Entity
+import jakarta.persistence.Index
 import jakarta.persistence.Table
 
 @Entity
-@Table(name = "products")
+@Table(
+    name = "products",
+    indexes = [Index(name = "idx_products_brand_id_tech_category_level", columnList = "brand_id, tech_category, level")],
+)
 class ProductModel private constructor (
     brandId: Long,
     isbn: String,
