@@ -2,6 +2,8 @@ package com.loopers.application.like
 
 import com.loopers.domain.like.InMemoryLikeRepository
 import com.loopers.domain.like.LikeService
+import com.loopers.domain.like.ProductLikeCountModel
+import com.loopers.domain.like.ProductLikeCountRepository
 import com.loopers.domain.product.InMemoryProductRepository
 import com.loopers.domain.product.Level
 import com.loopers.domain.product.ProductModel
@@ -28,7 +30,12 @@ class LikeFacadeTest {
 
     private val userService = UserService(inMemoryUserRepository)
     private val productService = ProductService(inMemoryProductRepository)
-    private val likeService = LikeService(inMemoryLikeRepository)
+    private val likeService = LikeService(
+        inMemoryLikeRepository,
+        object : ProductLikeCountRepository {
+            override fun findByProductIdIn(productIds: List<Long>): List<ProductLikeCountModel> = emptyList()
+        },
+    )
 
     private val likeFacade = LikeFacade(likeService, productService, userService)
 

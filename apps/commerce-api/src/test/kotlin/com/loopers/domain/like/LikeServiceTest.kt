@@ -10,7 +10,13 @@ import org.junit.jupiter.api.Test
 
 internal class LikeServiceTest {
     private val inMemoryLikeRepository = InMemoryLikeRepository()
-    private val likeService = LikeService(inMemoryLikeRepository)
+    private val likeService = LikeService(
+        inMemoryLikeRepository,
+        // 이 테스트는 집계 조회(getLikeCountFromAggregation)를 검증하지 않으므로 빈 가짜로 충분
+        object : ProductLikeCountRepository {
+            override fun findByProductIdIn(productIds: List<Long>): List<ProductLikeCountModel> = emptyList()
+        },
+    )
 
     @DisplayName("특정 상품의 좋아요 개수를 셀 때")
     @Nested
