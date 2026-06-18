@@ -38,3 +38,6 @@ out/
 
 ### Kotlin ###
 .kotlin
+
+# OTEL Java Agent (바이너리 — download-agent.sh 로 받음)
+scripts/otel/opentelemetry-javaagent.jar
