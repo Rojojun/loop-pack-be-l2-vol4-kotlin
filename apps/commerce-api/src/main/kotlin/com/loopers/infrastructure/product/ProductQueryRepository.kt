@@ -33,12 +33,11 @@ class ProductQueryRepository(
         )
 
         val content = when (sort) {
-            "likes_desc" -> jpaQueryFactory.selectFrom(productModel)
-                .leftJoin(productLikeCountModel).on(
-                    productModel.id.eq(productLikeCountModel.productId),
-                )
+            "likes_desc" -> jpaQueryFactory.select(productModel)
+                .from(productLikeCountModel)
+                .join(productModel).on(productModel.id.eq(productLikeCountModel.productId))
                 .where(*conditions)
-                .orderBy(productLikeCountModel.likeCount.desc(), productModel.id.desc())
+                .orderBy(productLikeCountModel.likeCount.desc(), productLikeCountModel.productId.desc())
                 .offset(pageable.offset)
                 .limit(pageable.pageSize.toLong())
                 .fetch()
