@@ -1,48 +1,52 @@
 package com.loopers.infrastructure.payment
 
 import com.loopers.domain.payment.PaymentCommand
-import com.loopers.domain.payment.PaymentResult
 import org.springframework.cloud.openfeign.FeignClient
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import com.loopers.domain.payment.CardType as DomainCardType
-import com.loopers.domain.payment.PaymentStatus as DomainPaymentStaus
+import com.loopers.domain.payment.PaymentStatus as DomainPaymentStatus
 
-@FeignClient(name = "pg", url="\${pg.url}")
+@FeignClient(name = "pg", url = "\${pg.url}")
 interface PaymentFeignClient {
-    @PostMapping
+    @PostMapping("/api/v1/payments")
     fun pay(
         @RequestHeader("X-USER-ID") userId: String,
-        @RequestBody request: PaymentFeignRequest
-    ): PaymentFeignResponse
+        @RequestBody request: PaymentFeignRequest,
+    ): PgResponse<TransactionResponse>
 }
 
 enum class CardType {
-    SAMSUNG;
+    SAMSUNG,
+    KB,
+    HYUNDAI,
+    ;
 
     companion object {
         fun from(cardType: DomainCardType): CardType = when (cardType) {
             DomainCardType.SAMSUNG -> SAMSUNG
+            DomainCardType.KB -> KB
+            DomainCardType.HYUNDAI -> HYUNDAI
         }
     }
 }
 
 data class PaymentFeignRequest(
-    val orderId: Long,
+    val orderId: String,
     val cardType: CardType,
     val cardNo: String,
-    val amount: Double,
-    val callBackUrl: String,
+    val amount: Long,
+    val callbackUrl: String,
 ) {
     companion object {
-        fun from(command: PaymentCommand, callBackUrl: String): PaymentFeignRequest =
+        fun from(command: PaymentCommand, callbackUrl: String): PaymentFeignRequest =
             PaymentFeignRequest(
-                orderId = command.orderId,
+                orderId = command.orderId.toString(),
                 cardType = CardType.from(command.cardType),
                 cardNo = command.cardNumber,
                 amount = command.amount,
-                callBackUrl = callBackUrl,
+                callbackUrl = callbackUrl,
             )
     }
 }
@@ -50,23 +54,29 @@ data class PaymentFeignRequest(
 enum class PaymentStatus {
     PENDING,
     SUCCESS,
-    FAILED
+    FAILED,
     ;
 
-    fun toDomain(): DomainPaymentStaus = when (this) {
-        PENDING -> DomainPaymentStaus.PENDING
-        SUCCESS -> DomainPaymentStaus.SUCCESS
-        FAILED -> DomainPaymentStaus.FAILED
+    fun toDomain(): DomainPaymentStatus = when (this) {
+        PENDING -> DomainPaymentStatus.PENDING
+        SUCCESS -> DomainPaymentStatus.SUCCESS
+        FAILED -> DomainPaymentStatus.FAILED
     }
 }
 
-data class PaymentFeignResponse(
-    val orderId: Long,
-    val status: PaymentStatus,
+data class PgResponse<T>(
+    val meta: Meta,
+    val data: T?,
 ) {
-    fun toResult(): PaymentResult =
-        PaymentResult(
-            orderId = orderId,
-            status = status.toDomain(),
-        )
+    data class Meta(
+        val result: String,
+        val errorCode: String?,
+        val message: String?,
+    )
 }
+
+data class TransactionResponse(
+    val transactionKey: String,
+    val status: PaymentStatus,
+    val reason: String?,
+)

@@ -1,5 +1,6 @@
-package com.loopers.interfaces.api.order
+package com.loopers.interfaces.api.payment
 
+import com.loopers.application.payment.PaymentFacade
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 

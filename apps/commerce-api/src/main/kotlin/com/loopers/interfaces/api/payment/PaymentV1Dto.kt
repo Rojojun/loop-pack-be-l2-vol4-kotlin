@@ -1,4 +1,4 @@
-package com.loopers.interfaces.api.order
+package com.loopers.interfaces.api.payment
 
 class PaymentV1Dto {
     enum class CardType {
@@ -15,9 +15,9 @@ class PaymentV1Dto {
         val orderId: Long,
         val status: String,
     ) {
-        companion object {
-            fun from(info: PaymentInfo): PaymentResponse =
-                PaymentResponse(info.orderId, info.status.name)
-        }
+//        companion object {
+//            fun from(info: PaymentInfo): PaymentResponse =
+//                PaymentResponse(info.orderId, info.status.name)
+//        }
     }
 }

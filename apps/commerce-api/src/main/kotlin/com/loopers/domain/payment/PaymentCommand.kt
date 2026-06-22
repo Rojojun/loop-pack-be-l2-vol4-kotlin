@@ -5,9 +5,11 @@ data class PaymentCommand(
     val userId: String,
     val cardType: CardType,
     val cardNumber: String,
-    val amount: Double,
+    val amount: Long,
 )
 
 enum class CardType {
-    SAMSUNG
+    SAMSUNG,
+    KB,
+    HYUNDAI,
 }

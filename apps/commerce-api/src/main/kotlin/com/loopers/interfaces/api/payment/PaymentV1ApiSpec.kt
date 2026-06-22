@@ -1,4 +1,4 @@
-package com.loopers.interfaces.api.order
+package com.loopers.interfaces.api.payment
 
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
