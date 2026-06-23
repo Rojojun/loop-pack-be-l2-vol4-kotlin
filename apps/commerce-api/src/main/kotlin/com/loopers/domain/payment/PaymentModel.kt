@@ -9,12 +9,12 @@ import jakarta.persistence.Table
 
 @Entity
 @Table(name = "payments")
-class PaymentModel(
+class PaymentModel private constructor (
     orderId: Long,
     userId: String,
     cardType: CardType,
     amount: Long,
-    transactionKey: String? = null,
+    transactionKey: String?,
 ) : BaseEntity() {
     @Column(name = "order_id", nullable = false, unique = true)
     var orderId: Long = orderId
