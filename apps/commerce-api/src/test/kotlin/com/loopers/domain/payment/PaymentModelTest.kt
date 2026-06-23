@@ -4,13 +4,14 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
-class PaymentTest {
+class PaymentModelTest {
 
-    private fun pending() = Payment(
+    private fun pending() = PaymentModel.of(
         orderId = 1L,
         userId = "user1",
         cardType = CardType.SAMSUNG,
         amount = 10_000L,
+        transactionKey = null,
     )
 
     @Test

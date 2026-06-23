@@ -9,33 +9,42 @@ import jakarta.persistence.Table
 
 @Entity
 @Table(name = "payments")
-class Payment(
+class PaymentModel(
+    orderId: Long,
+    userId: String,
+    cardType: CardType,
+    amount: Long,
+    transactionKey: String? = null,
+) : BaseEntity() {
     @Column(name = "order_id", nullable = false, unique = true)
-    val orderId: Long,
+    var orderId: Long = orderId
+        protected set
 
     @Column(name = "user_id", nullable = false)
-    val userId: String,
+    var userId: String = userId
+        protected set
 
     @Enumerated(EnumType.STRING)
     @Column(name = "card_type", nullable = false)
-    val cardType: CardType,
+    var cardType: CardType = cardType
+        protected set
 
     @Column(name = "amount", nullable = false)
-    val amount: Long,
-) : BaseEntity() {
+    var amount: Long = amount
+        protected set
 
     @Column(name = "transaction_key", nullable = true)
-    var transactionKey: String? = null
-        private set
+    var transactionKey: String? = transactionKey
+        protected set
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     var status: PaymentStatus = PaymentStatus.PENDING
-        private set
+        protected set
 
     @Column(name = "reason", nullable = true)
     var reason: String? = null
-        private set
+        protected set
 
     fun markRequested(transactionKey: String) {
         if (status != PaymentStatus.PENDING) return
@@ -51,5 +60,16 @@ class Payment(
         if (status != PaymentStatus.PENDING) return
         this.status = PaymentStatus.FAILED
         this.reason = reason
+    }
+
+    companion object {
+        fun of(orderId: Long, userId: String, cardType: CardType, amount: Long, transactionKey: String?) =
+            PaymentModel(
+                orderId = orderId,
+                userId = userId,
+                cardType = cardType,
+                amount = amount,
+                transactionKey = transactionKey
+            )
     }
 }
