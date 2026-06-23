@@ -2,6 +2,7 @@ package com.loopers.application.payment
 
 import com.loopers.domain.order.OrderService
 import com.loopers.domain.order.OrderStatus
+import com.loopers.domain.order.restoreStockOnCancel
 import com.loopers.domain.payment.CardType
 import com.loopers.domain.payment.PaymentCommand
 import com.loopers.domain.payment.PaymentModel
@@ -45,22 +46,17 @@ class PaymentFacade(
             reason = reason,
         )
         if (isSuccessTransaction != true) {
-            log.info("주문을 확인해주세요. [멱등조건 위반] transactionKey= {}, status = {}", transactionKey, status)
+            log.info("[멱등조건 위반] 주문을 확인해주세요 transactionKey= {}, status = {}", transactionKey, status)
             return
         }
 
         val orderId = paymentService.findByTransactionKey(transactionKey)!!.orderId
+        val order = orderService.getOrder(orderId)
         if (status == PaymentStatus.SUCCESS) {
-            orderService.getOrder(orderId).confirm()
+            order.confirm()
         } else {
-            val order = orderService.getOrder(orderId)
-            if (order.status != OrderStatus.CANCELLED) {
-                order.items.forEach { item ->
-                    val stock = stockService.getStockById(item.productId)
-                    stockService.restoreStock(stock, item.quantity)
-                }
-                order.markCancel()
-            }
+            val stocks = stockService.findWithLockByProductIdIn(order.items.map { it.productId })
+            restoreStockOnCancel(order, stocks)
         }
     }
 }

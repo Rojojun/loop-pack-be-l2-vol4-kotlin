@@ -3,6 +3,7 @@ package com.loopers.domain.payment
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
+import java.time.ZonedDateTime
 
 @Component
 class PaymentService(
@@ -40,4 +41,14 @@ class PaymentService(
         paymentRepository.findByTransactionKey(transactionKey)
 
     fun findByOrderId(orderId: Long): PaymentModel? = paymentRepository.findByOrderId(orderId)
+
+    fun getAllByPendingAndCreatedAtBefore(threshold: ZonedDateTime): List<PaymentModel> =
+        paymentRepository.findByStatusAndCreatedAtBefore(PaymentStatus.PENDING, threshold)
+
+    fun fail(orderId: Long, reason: String): Boolean? {
+        val payment = paymentRepository.findByOrderId(orderId) ?: return null
+        if (payment.status != PaymentStatus.PENDING) return false
+        payment.confirmFailure(reason)
+        return true
+    }
 }
