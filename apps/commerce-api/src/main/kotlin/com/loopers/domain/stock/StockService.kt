@@ -19,6 +19,9 @@ class StockService(
     fun reduceStock(stockModel: StockModel, quantity: Int): Unit =
         stockModel.reduce(quantity)
 
+    fun restoreStock(stockModel: StockModel, quantity: Int): Unit =
+        stockModel.restore(quantity)
+
     fun save(productId: Long, quantity: Int): StockModel {
         val stockModel = StockModel.of(productId, quantity)
         return stockRepository.save(stockModel)

@@ -55,6 +55,14 @@ class OrderModel private constructor (
 
     fun validateOwnedBy(userId: Long) = this.ensure(OrderOwnedBy(userId))
 
+    fun confirm() {
+        this.status = OrderStatus.CONFIRMED
+    }
+
+    fun markCancel() {
+        this.status = OrderStatus.CANCELLED
+    }
+
     private fun addItem(item: OrderItemModel) =
         item.also { orderItem.add(it) }
             .also { it.assignTo(this) }

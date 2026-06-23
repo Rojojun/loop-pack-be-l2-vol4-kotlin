@@ -18,7 +18,7 @@ class PaymentFeignAdapterIntegrationTest @Autowired constructor(
 ) {
     @Test
     @DisplayName("결제 요청 시 PG의 ApiResponse 래핑을 풀어 transactionKey/PENDING 으로 번역한다")
-    fun pay_returnsTransactionKeyAndPending() {
+    fun requestPayment_returnsTransactionKeyAndPending() {
         // given
         val command = PaymentCommand(
             orderId = 1351039135L,
@@ -31,7 +31,7 @@ class PaymentFeignAdapterIntegrationTest @Autowired constructor(
         var result: PaymentResult? = null
         for (attempt in 1..10) {
             try {
-                result = paymentPort.pay(command)
+                result = paymentPort.requestPayment(command)
                 println("시도 $attempt 성공 → $result")
                 break
             } catch (e: Exception) {

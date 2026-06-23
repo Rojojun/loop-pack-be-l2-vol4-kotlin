@@ -12,15 +12,27 @@ class PaymentFeignAdapter(
     @Value("\${pg.callback-url}")
     private val callbackUrl: String,
 ) : PaymentPort {
-    override fun pay(command: PaymentCommand): PaymentResult {
+    override fun requestPayment(command: PaymentCommand): PaymentResult {
         val request = PaymentFeignRequest.from(command, callbackUrl = callbackUrl)
-        val response = paymentFeignClient.pay(
+        val response = paymentFeignClient.requestPayment(
             userId = command.userId,
             request = request,
         )
         val transaction = response.data ?: error("PG 응답에 거래 정보(data)가 없습니다. meta=${response.meta}")
         return PaymentResult(
             orderId = command.orderId,
+            transactionKey = transaction.transactionKey,
+            status = transaction.status.toDomain(),
+            reason = transaction.reason,
+        )
+    }
+
+    override fun getTransaction(userId: String, transactionKey: String): PaymentResult {
+        val response = paymentFeignClient.getTransaction(userId, transactionKey)
+        val transaction = response.data
+            ?: error("PG 조회 응답에 거래 정보(data)가 존재하지 않습니다. meta=${response.meta}")
+        return PaymentResult(
+            orderId = 0L,
             transactionKey = transaction.transactionKey,
             status = transaction.status.toDomain(),
             reason = transaction.reason,

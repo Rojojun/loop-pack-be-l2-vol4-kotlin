@@ -2,6 +2,8 @@ package com.loopers.infrastructure.payment
 
 import com.loopers.domain.payment.PaymentCommand
 import org.springframework.cloud.openfeign.FeignClient
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
@@ -11,9 +13,15 @@ import com.loopers.domain.payment.PaymentStatus as DomainPaymentStatus
 @FeignClient(name = "pg", url = "\${pg.url}")
 interface PaymentFeignClient {
     @PostMapping("/api/v1/payments")
-    fun pay(
+    fun requestPayment(
         @RequestHeader("X-USER-ID") userId: String,
         @RequestBody request: PaymentFeignRequest,
+    ): PgResponse<TransactionResponse>
+
+    @GetMapping("/api/v1/payments/{transactionKey}")
+    fun getTransaction(
+        @RequestHeader("X-USER-ID") userId: String,
+        @PathVariable transactionKey: String,
     ): PgResponse<TransactionResponse>
 }
 
