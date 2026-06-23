@@ -1,4 +1,26 @@
 package com.loopers.infrastructure.payment
 
-class PaymentRepositoryImpl {
+import com.loopers.domain.payment.PaymentModel
+import com.loopers.domain.payment.PaymentRepository
+import com.loopers.domain.payment.PaymentStatus
+import org.springframework.stereotype.Component
+import java.time.ZonedDateTime
+
+@Component
+class PaymentRepositoryImpl(
+    private val paymentJpaRepository: PaymentJpaRepository
+) : PaymentRepository {
+    override fun save(payment: PaymentModel): PaymentModel = paymentJpaRepository.save(payment)
+
+    override fun findByOrderId(orderId: Long): PaymentModel? =
+        paymentJpaRepository.findByOrderId(orderId)
+
+    override fun findByTransactionKey(transactionKey: String): PaymentModel? =
+        paymentJpaRepository.findByTransactionKey(transactionKey)
+
+    override fun findByStatusAndCreatedAtBefore(
+        status: PaymentStatus,
+        threshold: ZonedDateTime,
+    ): List<PaymentModel> =
+        paymentJpaRepository.findByStatusAndCreatedAtBefore(status, threshold)
 }
