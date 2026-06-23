@@ -22,7 +22,8 @@ class PaymentFacade(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    fun requestPayment(userId: String, orderId: Long, cardType: CardType, cardNumber: String, amount: Long): PaymentModel {
+    fun requestPayment(userId: String, orderId: Long, cardType: CardType, cardNumber: String): PaymentModel {
+        val amount = orderService.getOrder(orderId).finalAmount.toLong()
         val payment = paymentService.getOrCreatePending(orderId, userId, cardType, amount)
         if (payment.transactionKey != null) return payment
 
