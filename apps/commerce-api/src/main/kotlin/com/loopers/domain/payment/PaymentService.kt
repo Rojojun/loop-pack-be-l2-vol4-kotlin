@@ -27,5 +27,17 @@ class PaymentService(
         paymentRepository.save(payment)
     }
 
+    @Transactional
+    fun confirm(transactionKey: String, success: Boolean, reason: String?): Boolean? {
+        val payment = paymentRepository.findByTransactionKey(transactionKey) ?: return null
+        if (payment.status != PaymentStatus.PENDING) return false
+        if (success) payment.confirmSuccess() else payment.confirmFailure(reason ?: "결제 실패")
+        paymentRepository.save(payment)
+        return true
+    }
+
+    fun findByTransactionKey(transactionKey: String): PaymentModel? =
+        paymentRepository.findByTransactionKey(transactionKey)
+
     fun findByOrderId(orderId: Long): PaymentModel? = paymentRepository.findByOrderId(orderId)
 }
