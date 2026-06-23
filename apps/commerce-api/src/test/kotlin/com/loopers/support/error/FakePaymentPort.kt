@@ -6,7 +6,7 @@ import com.loopers.domain.payment.PaymentResult
 import com.loopers.domain.payment.PaymentStatus
 
 class FakePaymentPort : PaymentPort {
-    val pay : (PaymentCommand) -> PaymentResult = { command ->
+    var pay : (PaymentCommand) -> PaymentResult = { command ->
         PaymentResult(command.orderId, "TR-${command.orderId}", PaymentStatus.PENDING, null)
     }
 
