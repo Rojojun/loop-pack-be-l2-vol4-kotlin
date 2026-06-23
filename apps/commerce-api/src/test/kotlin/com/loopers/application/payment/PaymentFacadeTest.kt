@@ -35,18 +35,17 @@ class PaymentFacadeTest {
         @DisplayName("정상 요청이면 PENDING 상태로 접수되고 transactionKey 가 부여된다.")
         @Test
         fun returnsPendingWithTransactionKey() {
-            // when
-            val payment = paymentFacade.requestPayment(
-                userId = "user1",
-                orderId = 1L,
-                cardType = CardType.SAMSUNG,
-                cardNumber = "1234-1234-1234-1234",
-                amount = 10_000L,
+            // given
+            val order = inMemoryOrderRepository.save(
+                OrderModel.of(1L, listOf(OrderItemModel.of(1L, "상품", 1000.0, 2))),
             )
+
+            // when
+            val payment = paymentFacade.requestPayment("user1", order.id, CardType.SAMSUNG, "1234-1234-1234-1234")
 
             // then
             assertThat(payment.status).isEqualTo(PaymentStatus.PENDING)
-            assertThat(payment.transactionKey).isEqualTo("TR-1")
+            assertThat(payment.transactionKey).isEqualTo("TR-${order.id}")
         }
 
         @DisplayName("PG 호출이 실패해도 예외 없이 PENDING(transactionKey=null) 으로 유지된다.")
@@ -54,15 +53,12 @@ class PaymentFacadeTest {
         fun keepsPendingWhenPgFails() {
             // given
             fakePaymentPort.pay = { throw RuntimeException("PG 500") }
+            val order = inMemoryOrderRepository.save(
+                OrderModel.of(1L, listOf(OrderItemModel.of(2L, "상품", 1000.0, 2))),
+            )
 
             // when
-            val payment = paymentFacade.requestPayment(
-                userId = "user1",
-                orderId = 2L,
-                cardType = CardType.SAMSUNG,
-                cardNumber = "1234-1234-1234-1234",
-                amount = 10_000L,
-            )
+            val payment = paymentFacade.requestPayment("user1", order.id, CardType.SAMSUNG, "1234-1234-1234-1234")
 
             // then
             assertThat(payment.status).isEqualTo(PaymentStatus.PENDING)
@@ -73,13 +69,16 @@ class PaymentFacadeTest {
         @Test
         fun doesNotRecallPgWhenAlreadyRequested() {
             // given
-            paymentFacade.requestPayment("user1", 3L, CardType.SAMSUNG, "1234-1234-1234-1234", 10_000L)
+            val order = inMemoryOrderRepository.save(
+                OrderModel.of(1L, listOf(OrderItemModel.of(3L, "상품", 1000.0, 2))),
+            )
+            paymentFacade.requestPayment("user1", order.id, CardType.SAMSUNG, "1234-1234-1234-1234")
 
             // when
-            val again = paymentFacade.requestPayment("user1", 3L, CardType.SAMSUNG, "1234-1234-1234-1234", 10_000L)
+            val again = paymentFacade.requestPayment("user1", order.id, CardType.SAMSUNG, "1234-1234-1234-1234")
 
             // then
-            assertThat(again.transactionKey).isEqualTo("TR-3")
+            assertThat(again.transactionKey).isEqualTo("TR-${order.id}")
         }
     }
 
@@ -91,7 +90,7 @@ class PaymentFacadeTest {
             val order = inMemoryOrderRepository.save(
                 OrderModel.of(1L, listOf(OrderItemModel.of(productId, "상품", 1000.0, quantity))),
             )
-            paymentFacade.requestPayment("user1", order.id, CardType.SAMSUNG, "1234-1234-1234-1234", 10_000L)
+            paymentFacade.requestPayment("user1", order.id, CardType.SAMSUNG, "1234-1234-1234-1234")
             return order.id
         }
 

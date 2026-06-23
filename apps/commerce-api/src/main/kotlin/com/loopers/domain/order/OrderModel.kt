@@ -56,10 +56,12 @@ class OrderModel private constructor (
     fun validateOwnedBy(userId: Long) = this.ensure(OrderOwnedBy(userId))
 
     fun confirm() {
+        if (status != OrderStatus.PENDING) return
         this.status = OrderStatus.CONFIRMED
     }
 
     fun markCancel() {
+        if (status == OrderStatus.CANCELLED) return
         this.status = OrderStatus.CANCELLED
     }
 

@@ -28,12 +28,13 @@ class PaymentReconciler(
             runCatching {
                 val transactionKey = payment.transactionKey
                 if (transactionKey == null) {
+                    paymentFacade.autoFail(payment.orderId, "PG 미접수 (no transaction key)")
                     log.warn("[reconcile] transactionKey 없는 요청 orderId = {} (PG 미접수)", payment.orderId)
                 } else {
                     val result = paymentPort.getTransaction(payment.userId, transactionKey)
                     when (result.status) {
                         PaymentStatus.SUCCESS, PaymentStatus.FAILED -> paymentFacade.confirm(transactionKey, result.status, result.reason)
-                        PaymentStatus.PENDING -> TODO("미정...")
+                        PaymentStatus.PENDING -> Unit
                     }
                 }
             }.onFailure { log.warn("[reconcile] 거래 처리 실패 orderId = {}, {}", payment.orderId, it.message) }

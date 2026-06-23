@@ -45,10 +45,12 @@ class PaymentService(
     fun getAllByPendingAndCreatedAtBefore(threshold: ZonedDateTime): List<PaymentModel> =
         paymentRepository.findByStatusAndCreatedAtBefore(PaymentStatus.PENDING, threshold)
 
+    @Transactional
     fun fail(orderId: Long, reason: String): Boolean? {
         val payment = paymentRepository.findByOrderId(orderId) ?: return null
         if (payment.status != PaymentStatus.PENDING) return false
         payment.confirmFailure(reason)
+        paymentRepository.save(payment)
         return true
     }
 }
