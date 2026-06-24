@@ -65,7 +65,7 @@ resilience4j:
         max-attempts: 3
         wait-duration: 200ms
         retry-exceptions:
-          - feign.FeignException.InternalServerError
+          - feign.FeignException
           - feign.RetryableException
         ignore-exceptions:
           - com.loopers.support.error.CoreException
