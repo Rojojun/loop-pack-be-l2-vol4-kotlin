@@ -3,6 +3,8 @@ package com.loopers.infrastructure.payment
 import com.loopers.domain.payment.PaymentCommand
 import com.loopers.domain.payment.PaymentPort
 import com.loopers.domain.payment.PaymentResult
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker
+import io.github.resilience4j.retry.annotation.Retry
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 
@@ -12,6 +14,8 @@ class PaymentFeignAdapter(
     @Value("\${pg.callback-url}")
     private val callbackUrl: String,
 ) : PaymentPort {
+    @Retry(name = "pg")
+    @CircuitBreaker(name = "pg")
     override fun requestPayment(command: PaymentCommand): PaymentResult {
         val request = PaymentFeignRequest.from(command, callbackUrl = callbackUrl)
         val response = paymentFeignClient.requestPayment(
@@ -27,6 +31,8 @@ class PaymentFeignAdapter(
         )
     }
 
+    @Retry(name = "pg")
+    @CircuitBreaker(name = "pg")
     override fun getTransaction(userId: String, transactionKey: String): PaymentResult {
         val response = paymentFeignClient.getTransaction(userId, transactionKey)
         val transaction = response.data

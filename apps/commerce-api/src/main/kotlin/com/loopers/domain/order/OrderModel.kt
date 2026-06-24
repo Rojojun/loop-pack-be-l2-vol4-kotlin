@@ -4,6 +4,8 @@ import com.loopers.domain.BaseEntity
 import com.loopers.support.function.ensure
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
@@ -22,6 +24,7 @@ class OrderModel private constructor (
     var userId: Long = userId
         protected set
 
+    @Enumerated(EnumType.STRING)
     var status = status
         protected set
 
