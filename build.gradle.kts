@@ -68,8 +68,6 @@ subprojects {
         // Serialize
         implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
         implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-        // Spring Cloud
-        implementation("org.springframework.cloud:spring-cloud-starter-openfeign")
         // Test
         testRuntimeOnly("org.junit.platform:junit-platform-launcher")
         // testcontainers:mysql 이 jdbc 사용함
