@@ -1,0 +1,32 @@
+groups:
+  - name: circuit-breaker
+    rules:
+      # PG 서킷이 현재 OPEN (호출 차단/shed 중)
+      - alert: PgCircuitBreakerOpen
+        expr: resilience4j_circuitbreaker_state{name="pg",state="open"} == 1
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "PG 서킷브레이커 OPEN"
+          description: "PG 연동이 차단되어 호출이 shed 되고 있습니다. (instance={{ $labels.instance }})"
+
+      # 최근 5분간 서킷이 호출을 대량 차단(not_permitted) — 반복 open 신호
+      - alert: PgCircuitBreakerSheddingCalls
+        expr: increase(resilience4j_circuitbreaker_not_permitted_calls_total{name="pg"}[5m]) > 100
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PG 호출 대량 차단(shed)"
+          description: "최근 5분 not_permitted {{ $value }}건 — 서킷이 자주 열리고 있습니다."
+
+      # 재시도(max-attempts)를 모두 소진하고도 실패한 결제 — 자동 회복 불가, 수동 확인 필요 (→ Slack)
+      - alert: PaymentRetryExhausted
+        expr: increase(resilience4j_retry_calls_total{name="pg",kind="failed_with_retry"}[5m]) >= 4
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "결제 재시도 소진 실패 — 수동 확인 필요"
+          description: "최근 5분간 재시도를 모두 소진하고도 실패한 결제 {{ $value }}건. PG 지속 실패 의심 → 확인 요망."
