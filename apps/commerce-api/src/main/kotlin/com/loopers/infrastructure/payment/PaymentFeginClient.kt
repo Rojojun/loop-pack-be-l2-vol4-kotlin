@@ -50,7 +50,7 @@ data class PaymentFeignRequest(
     companion object {
         fun from(command: PaymentCommand, callbackUrl: String): PaymentFeignRequest =
             PaymentFeignRequest(
-                orderId = command.orderId.toString(),
+                orderId = command.orderId.toString().padStart(6, '0'),
                 cardType = CardType.from(command.cardType),
                 cardNo = command.cardNumber,
                 amount = command.amount,
