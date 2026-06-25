@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
+import org.springframework.web.bind.annotation.RequestParam
 import com.loopers.domain.payment.CardType as DomainCardType
 import com.loopers.domain.payment.PaymentStatus as DomainPaymentStatus
 
@@ -23,6 +24,12 @@ interface PaymentFeignClient {
         @RequestHeader("X-USER-ID") userId: String,
         @PathVariable transactionKey: String,
     ): PgResponse<TransactionResponse>
+
+    @GetMapping("/api/v1/payments")
+    fun findByOrderId(
+        @RequestHeader("X-USER-ID") userId: String,
+        @RequestParam("orderId") orderId: String,
+    ): PgResponse<OrderResponse>
 }
 
 enum class CardType {
@@ -87,4 +94,9 @@ data class TransactionResponse(
     val transactionKey: String,
     val status: PaymentStatus,
     val reason: String?,
+)
+
+data class OrderResponse(
+    val orderId: String,
+    val transactions: List<TransactionResponse>,
 )

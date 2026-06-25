@@ -28,13 +28,29 @@ class PaymentReconciler(
             runCatching {
                 val transactionKey = payment.transactionKey
                 if (transactionKey == null) {
-                    paymentFacade.autoFail(payment.orderId, "PG 미접수 (no transaction key)")
-                    log.warn("[reconcile] transactionKey 없는 요청 orderId = {} (PG 미접수)", payment.orderId)
+                    val results = paymentPort.getAllByOrderId(payment.userId, payment.orderId)
+                    when {
+                        results.size >= 2 -> log.error("[reconcile] 멱등 위반 의심 : orderId = {} PG 거래 {} 건 ", payment.orderId, results.size)
+                        results.size == 1 -> {
+                            val found = results.first()
+                            when (found.status) {
+                                PaymentStatus.SUCCESS, PaymentStatus.FAILED -> {
+                                    paymentService.addTransactionKey(payment.orderId, found.transactionKey)
+                                    paymentFacade.confirm(found.transactionKey, found.status, found.reason)
+                                }
+                                PaymentStatus.PENDING -> Unit // PG 처리 중
+                            }
+                        }
+                        else -> {
+                            paymentFacade.autoFail(payment.orderId, "PG 미접수 (no transaction)")
+                            log.warn("[reconcile] PG 미접수 확인 orderId={} -> autoFail", payment.orderId)
+                        }
+                    }
                 } else {
                     val result = paymentPort.getTransaction(payment.userId, transactionKey)
                     when (result.status) {
                         PaymentStatus.SUCCESS, PaymentStatus.FAILED -> paymentFacade.confirm(transactionKey, result.status, result.reason)
-                        PaymentStatus.PENDING -> Unit
+                        PaymentStatus.PENDING -> Unit // PG 처리 중
                     }
                 }
             }.onFailure { log.warn("[reconcile] 거래 처리 실패 orderId = {}, {}", payment.orderId, it.message) }

@@ -3,6 +3,7 @@ package com.loopers.infrastructure.payment
 import com.loopers.domain.payment.PaymentCommand
 import com.loopers.domain.payment.PaymentPort
 import com.loopers.domain.payment.PaymentResult
+import feign.FeignException
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker
 import io.github.resilience4j.retry.annotation.Retry
 import org.springframework.beans.factory.annotation.Value
@@ -43,5 +44,27 @@ class PaymentFeignAdapter(
             status = transaction.status.toDomain(),
             reason = transaction.reason,
         )
+    }
+
+    @CircuitBreaker(name = "pg")
+    override fun getAllByOrderId(userId: String, orderId: Long): List<PaymentResult> {
+        val response = try {
+            paymentFeignClient.findByOrderId(
+                userId = userId,
+                orderId = orderId.toString().padStart(6, '0'),
+            )
+        } catch (e: FeignException.NotFound) {
+            return emptyList()
+        }
+        val order = response.data ?: return emptyList()
+
+        return order.transactions.map { transaction ->
+            PaymentResult(
+                orderId = orderId,
+                transactionKey = transaction.transactionKey,
+                status = transaction.status.toDomain(),
+                reason = transaction.reason,
+            )
+        }
     }
 }

@@ -4,4 +4,6 @@ interface PaymentPort {
     fun requestPayment(command: PaymentCommand): PaymentResult
 
     fun getTransaction(userId: String, transactionKey: String): PaymentResult
+
+    fun getAllByOrderId(userId: String, orderId: Long): List<PaymentResult>
 }

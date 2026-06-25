@@ -171,4 +171,85 @@ class PaymentReconcilerTest {
             assertThat(inMemoryStockRepository.findStockByProductId(7L)!!.quantity).isEqualTo(10)
         }
     }
+
+    @Nested
+    @DisplayName("거짓음성(타임아웃으로 txKey 분실)이지만 PG 엔 거래가 있는 건은")
+    inner class FalseNegativeRecovery {
+        private fun givenStalePendingWithoutTxKey(productId: Long, quantity: Int = 2, stockQty: Int = 8): Long {
+            fakePaymentPort.pay = { throw RuntimeException("PG timeout") }
+            inMemoryStockRepository.save(StockModel.of(productId, stockQty))
+            val order = inMemoryOrderRepository.save(
+                OrderModel.of(1L, listOf(OrderItemModel.of(productId, "상품", 1000.0, quantity))),
+            )
+            paymentFacade.requestPayment("user1", order.id, CardType.SAMSUNG, "1234-1234-1234-1234")
+            paymentService.findByOrderId(order.id)!!.assignCreatedAt(ZonedDateTime.now().minusMinutes(1))
+            return order.id
+        }
+
+        @DisplayName("PG 역조회 1건 SUCCESS 면 txKey 를 회수해 결제 SUCCESS·주문 CONFIRMED 로 복구한다.")
+        @Test
+        fun recoversToSuccess() {
+            // given
+            val orderId = givenStalePendingWithoutTxKey(productId = 8L)
+            fakePaymentPort.findByOrderIdResult =
+                listOf(PaymentResult(orderId, "TR-recovered", PaymentStatus.SUCCESS, null))
+
+            // when
+            reconciler.reconcile()
+
+            // then
+            assertThat(paymentService.findByOrderId(orderId)!!.status).isEqualTo(PaymentStatus.SUCCESS)
+            assertThat(paymentService.findByOrderId(orderId)!!.transactionKey).isEqualTo("TR-recovered")
+            assertThat(inMemoryOrderRepository.findByIdOrNull(orderId)!!.status).isEqualTo(OrderStatus.CONFIRMED)
+        }
+
+        @DisplayName("PG 역조회 1건 FAILED 면 결제 FAILED·주문 CANCELLED·재고 복원으로 복구한다.")
+        @Test
+        fun recoversToFailureAndRestoresStock() {
+            // given
+            val orderId = givenStalePendingWithoutTxKey(productId = 9L, quantity = 2, stockQty = 8)
+            fakePaymentPort.findByOrderIdResult =
+                listOf(PaymentResult(orderId, "TR-recovered", PaymentStatus.FAILED, "한도초과"))
+
+            // when
+            reconciler.reconcile()
+
+            // then
+            assertThat(paymentService.findByOrderId(orderId)!!.status).isEqualTo(PaymentStatus.FAILED)
+            assertThat(inMemoryOrderRepository.findByIdOrNull(orderId)!!.status).isEqualTo(OrderStatus.CANCELLED)
+            assertThat(inMemoryStockRepository.findStockByProductId(9L)!!.quantity).isEqualTo(10)
+        }
+
+        @DisplayName("PG 역조회가 PENDING 이면 전이하지 않고 다음 주기로 미룬다.")
+        @Test
+        fun skipsWhenPgPending() {
+            // given
+            val orderId = givenStalePendingWithoutTxKey(productId = 10L)
+            fakePaymentPort.findByOrderIdResult =
+                listOf(PaymentResult(orderId, "TR-1", PaymentStatus.PENDING, null))
+
+            // when
+            reconciler.reconcile()
+
+            // then
+            assertThat(paymentService.findByOrderId(orderId)!!.status).isEqualTo(PaymentStatus.PENDING)
+        }
+
+        @DisplayName("PG 역조회가 2건 이상(멱등 위반)이면 자동 전이하지 않고 보류한다.")
+        @Test
+        fun holdsWhenDuplicateDetected() {
+            // given
+            val orderId = givenStalePendingWithoutTxKey(productId = 11L)
+            fakePaymentPort.findByOrderIdResult = listOf(
+                PaymentResult(orderId, "TR-1", PaymentStatus.SUCCESS, null),
+                PaymentResult(orderId, "TR-2", PaymentStatus.SUCCESS, null),
+            )
+
+            // when
+            reconciler.reconcile()
+
+            // then
+            assertThat(paymentService.findByOrderId(orderId)!!.status).isEqualTo(PaymentStatus.PENDING)
+        }
+    }
 }

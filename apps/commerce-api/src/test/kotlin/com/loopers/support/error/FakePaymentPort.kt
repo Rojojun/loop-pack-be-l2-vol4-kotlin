@@ -10,9 +10,13 @@ class FakePaymentPort : PaymentPort {
         PaymentResult(command.orderId, "TR-${command.orderId}", PaymentStatus.PENDING, null)
     }
 
+    var findByOrderIdResult: List<PaymentResult> = emptyList()
+
     val transactions: MutableMap<String, PaymentResult> = mutableMapOf()
 
     override fun requestPayment(command: PaymentCommand): PaymentResult = pay(command)
 
     override fun getTransaction(userId: String, transactionKey: String): PaymentResult = transactions[transactionKey] ?: error("Transaction $transactionKey not found")
+
+    override fun getAllByOrderId(userId: String, orderId: Long): List<PaymentResult> = findByOrderIdResult
 }
