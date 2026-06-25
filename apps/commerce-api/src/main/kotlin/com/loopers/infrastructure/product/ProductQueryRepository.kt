@@ -1,6 +1,6 @@
 package com.loopers.infrastructure.product
 
-import com.loopers.domain.like.QLikeModel.likeModel
+import com.loopers.domain.like.QProductLikeCountModel.productLikeCountModel
 import com.loopers.domain.product.Level
 import com.loopers.domain.product.ProductModel
 import com.loopers.domain.product.QProductModel.productModel
@@ -33,13 +33,11 @@ class ProductQueryRepository(
         )
 
         val content = when (sort) {
-            "likes_desc" -> jpaQueryFactory.selectFrom(productModel)
-                .leftJoin(likeModel).on(
-                    likeModel.productId.eq(productModel.id).and(likeModel.deletedAt.isNull),
-                )
+            "likes_desc" -> jpaQueryFactory.select(productModel)
+                .from(productLikeCountModel)
+                .join(productModel).on(productModel.id.eq(productLikeCountModel.productId))
                 .where(*conditions)
-                .groupBy(productModel.id)
-                .orderBy(likeModel.count().desc(), productModel.id.desc())
+                .orderBy(productLikeCountModel.likeCount.desc(), productLikeCountModel.productId.desc())
                 .offset(pageable.offset)
                 .limit(pageable.pageSize.toLong())
                 .fetch()
