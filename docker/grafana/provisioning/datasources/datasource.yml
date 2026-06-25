@@ -5,3 +5,14 @@ datasources:
     access: proxy
     url: http://prometheus:9090
     isDefault: true
+  - name: MySQL
+    type: mysql
+    url: host.docker.internal:3306
+    database: loopers
+    user: root
+    secureJsonData:
+      password: root
+  - name: Tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200

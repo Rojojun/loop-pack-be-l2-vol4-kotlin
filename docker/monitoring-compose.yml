@@ -17,6 +17,28 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
 
+  tempo:
+    image: grafana/tempo:latest
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    ports:
+      - "3200:3200"   # tempo query API (Grafana datasource)
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    volumes:
+      - ./grafana/tempo.yaml:/etc/tempo.yaml
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  mysql-exporter:
+    image: prom/mysqld-exporter:v0.14.0
+    ports:
+      - "9104:9104"
+    environment:
+      # 실험용 — root 로 글로벌 status/performance_schema 접근 (운영이면 전용 유저 + 최소권한)
+      - DATA_SOURCE_NAME=root:root@(host.docker.internal:3306)/
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # Linux 에서 host.docker.internal 해석용 (mac/win 은 자동)
+
 networks:
   default:
     driver: bridge

@@ -1,4 +1,6 @@
 management:
+  tracing:
+    enabled: false
   metrics:
     distribution:
       percentiles-histogram:
