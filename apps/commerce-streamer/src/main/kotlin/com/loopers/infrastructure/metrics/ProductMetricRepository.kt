@@ -28,4 +28,17 @@ interface ProductMetricRepository : JpaRepository<ProductMetricsModel, Long> {
         nativeQuery = true,
     )
     fun upsertSalesCount(productId: Long, delta: Int, version: Long): Int
+
+    @Modifying(clearAutomatically = true)
+    @Query(
+        value = """
+    INSERT INTO product_metrics (product_id, view_count, version)
+    VALUES (:productId, GREATEST(:delta, 0), :version)
+    ON DUPLICATE KEY UPDATE
+        view_count = GREATEST(0, view_count + :delta),
+        version = :version
+    """,
+        nativeQuery = true,
+    )
+    fun upsertViewCount(productId: Long, delta: Int, version: Long): Int
 }

@@ -21,4 +21,11 @@ class KafkaTopicConfig {
             .partitions(3)
             .replicas(1)
             .build()
+
+    @Bean
+    fun viewEventsTopic(): NewTopic =
+        TopicBuilder.name(KafkaTopics.VIEW_EVENTS)
+            .partitions(3)
+            .replicas(1)
+            .build()
 }

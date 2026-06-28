@@ -4,6 +4,7 @@ import com.loopers.infrastructure.metrics.EventHandledRepository
 import com.loopers.infrastructure.metrics.ProductMetricRepository
 import com.loopers.interfaces.consumer.message.LikeChangedMessage
 import com.loopers.interfaces.consumer.message.OrderConfirmedMessage
+import com.loopers.interfaces.consumer.message.ProductViewedMessage
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.time.ZonedDateTime
@@ -31,5 +32,13 @@ class ProductMetricsService(
 
         val version = message.occurredAt.toInstant().toEpochMilli()
         message.items.forEach { productMetricRepository.upsertSalesCount(it.productId, it.quantity, version) }
+    }
+
+    @Transactional
+    fun applyViewed(message: ProductViewedMessage) {
+        if (eventHandledRepository.insertIfAbsent(message.eventId, ZonedDateTime.now()) == 0) return
+
+        val version = message.occurredAt.toInstant().toEpochMilli()
+        productMetricRepository.upsertViewCount(message.productId, 1, version)
     }
 }

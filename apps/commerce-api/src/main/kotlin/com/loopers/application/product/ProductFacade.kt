@@ -4,15 +4,19 @@ import com.loopers.domain.brand.BrandService
 import com.loopers.domain.like.LikeService
 import com.loopers.domain.like.ProductId
 import com.loopers.domain.product.Level
+import com.loopers.domain.product.ProductEvent
 import com.loopers.domain.product.ProductService
 import com.loopers.domain.product.ProductViewQuery
 import com.loopers.domain.product.getProductDomainForUser
 import com.loopers.domain.product.TechCategory
 import com.loopers.domain.stock.StockService
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Component
+import java.time.ZonedDateTime
+import java.util.UUID
 
 @Component
 class ProductFacade(
@@ -22,6 +26,7 @@ class ProductFacade(
     private val likeService: LikeService,
     // 캐시/DB 분기·rebuild·fallback 은 query 내부(CQRS read side). Facade 는 모른다.
     private val productViewQuery: ProductViewQuery,
+    private val eventPublisher: ApplicationEventPublisher,
 ) {
     fun findProducts(
         brandId: Long?,
@@ -50,6 +55,10 @@ class ProductFacade(
         val brand = brandService.getBrandActive(product.brandId)
         val stock = stockService.getStockById(product.id)
         val likeCount = likeService.getLikeCount(product.id)
+
+        eventPublisher.publishEvent(
+            ProductEvent.Viewed(UUID.randomUUID().toString(), productId, ZonedDateTime.now()),
+        )
 
         return getProductDomainForUser(product, brand, stock, likeCount)
             .let { ProductInfo.of(it) }
