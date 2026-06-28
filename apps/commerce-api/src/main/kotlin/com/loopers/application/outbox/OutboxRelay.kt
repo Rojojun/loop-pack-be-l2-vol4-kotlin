@@ -1,7 +1,6 @@
 package com.loopers.application.outbox
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.loopers.domain.like.LikeEvent
 import com.loopers.domain.outbox.OutboxRepository
 import com.loopers.domain.outbox.OutboxStatus
 import org.slf4j.LoggerFactory
@@ -22,7 +21,7 @@ class OutboxRelay(
     @Transactional
     fun publish() {
         outboxRepository.findAllByStatus(OutboxStatus.NEW).forEach { outbox ->
-            val event = objectMapper.readValue(outbox.payload, LikeEvent.Changed::class.java)
+            val event = objectMapper.readTree(outbox.payload)
             kafkaTemplate.send(outbox.topic, outbox.aggregateId, event).get()
             outbox.markSent()
         }

@@ -15,4 +15,17 @@ interface ProductMetricRepository : JpaRepository<ProductMetricsModel, Long> {
         version = :version
     """, nativeQuery = true)
     fun upsertLikeCount(productId: Long, delta: Int, version: Long): Int
+
+    @Modifying(clearAutomatically = true)
+    @Query(
+        value = """
+    INSERT INTO product_metrics (product_id, sales_count, version)
+    VALUES (:productId, GREATEST(:delta, 0), :version)
+    ON DUPLICATE KEY UPDATE
+        sales_count = GREATEST(0, sales_count + :delta),
+        version = :version
+    """,
+        nativeQuery = true,
+    )
+    fun upsertSalesCount(productId: Long, delta: Int, version: Long): Int
 }

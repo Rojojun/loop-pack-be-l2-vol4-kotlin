@@ -14,4 +14,11 @@ class KafkaTopicConfig {
             .partitions(3)
             .replicas(1)
             .build()
+
+    @Bean
+    fun orderEventsTopic(): NewTopic =
+        TopicBuilder.name(KafkaTopics.ORDER_EVENTS)
+            .partitions(3)
+            .replicas(1)
+            .build()
 }
