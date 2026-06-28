@@ -105,4 +105,73 @@ internal class OrderModelTest {
             .isInstanceOf(CoreException::class.java)
             .hasMessage("PENDING 상태의 주문만 취소할 수 있습니다.")
     }
+
+    @DisplayName("confirm() 은 PENDING 주문을 CONFIRMED 로 전이한다.")
+    @Test
+    fun confirmFromPending() {
+        // given
+        val order = OrderModel.of(1L, listOf(OrderItemModel.of(1L, "상품", 1000.0, 1)))
+
+        // when
+        order.confirm()
+
+        // then
+        assertThat(order.status).isEqualTo(OrderStatus.CONFIRMED)
+    }
+
+    @DisplayName("이미 CONFIRMED 인 주문에 confirm() 을 다시 호출해도 no-op 이다. (멱등)")
+    @Test
+    fun confirmIsIdempotent() {
+        // given
+        val order = OrderModel.of(1L, listOf(OrderItemModel.of(1L, "상품", 1000.0, 1)))
+        order.confirm()
+
+        // when
+        order.confirm()
+
+        // then
+        assertThat(order.status).isEqualTo(OrderStatus.CONFIRMED)
+    }
+
+    @DisplayName("CANCELLED 상태에서는 confirm() 이 동작하지 않는다. (PENDING 가드)")
+    @Test
+    fun confirmDoesNothingWhenCancelled() {
+        // given
+        val order = OrderModel.of(1L, listOf(OrderItemModel.of(1L, "상품", 1000.0, 1)))
+        order.markCancel()
+
+        // when
+        order.confirm()
+
+        // then
+        assertThat(order.status).isEqualTo(OrderStatus.CANCELLED)
+    }
+
+    @DisplayName("markCancelled() 은 PENDING 주문을 CANCELLED 로 전이한다.")
+    @Test
+    fun markCancelledFromPending() {
+        // given
+        val order = OrderModel.of(1L, listOf(OrderItemModel.of(1L, "상품", 1000.0, 1)))
+
+        // when
+        order.markCancel()
+
+        // then
+        assertThat(order.status).isEqualTo(OrderStatus.CANCELLED)
+    }
+
+    @DisplayName("이미 CANCELLED 인 주문에 markCancelled() 를 다시 호출해도 no-op 이다. (멱등)")
+    @Test
+    fun markCancelledIsIdempotent() {
+        // given
+        val order = OrderModel.of(1L, listOf(OrderItemModel.of(1L, "상품", 1000.0, 1)))
+        order.markCancel()
+
+        // when
+        order.markCancel()
+
+        // then
+        assertThat(order.status).isEqualTo(OrderStatus.CANCELLED)
+    }
+
 }

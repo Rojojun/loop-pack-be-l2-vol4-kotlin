@@ -4,6 +4,8 @@ import com.loopers.domain.BaseEntity
 import com.loopers.support.function.ensure
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
@@ -22,6 +24,7 @@ class OrderModel private constructor (
     var userId: Long = userId
         protected set
 
+    @Enumerated(EnumType.STRING)
     var status = status
         protected set
 
@@ -54,6 +57,16 @@ class OrderModel private constructor (
     fun totalPrice(): Double = orderItem.sumOf { it.totalPrice() }
 
     fun validateOwnedBy(userId: Long) = this.ensure(OrderOwnedBy(userId))
+
+    fun confirm() {
+        if (status != OrderStatus.PENDING) return
+        this.status = OrderStatus.CONFIRMED
+    }
+
+    fun markCancel() {
+        if (status == OrderStatus.CANCELLED) return
+        this.status = OrderStatus.CANCELLED
+    }
 
     private fun addItem(item: OrderItemModel) =
         item.also { orderItem.add(it) }
