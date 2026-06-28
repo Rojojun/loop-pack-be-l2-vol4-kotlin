@@ -1,0 +1,14 @@
+route:
+  receiver: 'default'
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 1h
+
+receivers:
+  - name: 'default'
+    # 발화 검증용 더미 receiver. 실제 채널(Slack/PagerDuty)은 webhook_configs/slack_configs 로 교체.
+    # 더미 수신기가 없어도 발화 자체는 Alertmanager UI(:9093) 와 Prometheus /api/v1/alerts 에서 확인됨.
+    webhook_configs:
+      - url: 'http://host.docker.internal:5001/'
+        send_resolved: true
