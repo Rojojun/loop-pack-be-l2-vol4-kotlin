@@ -10,13 +10,14 @@ import java.time.ZonedDateTime
 class CouponService(
     private val couponRepository: CouponRepository
 ) {
-    fun createCoupon(name: String, type: CouponType, value: Double, minOrderAmount: Double, expiredAt: ZonedDateTime): CouponModel =
+    fun createCoupon(name: String, type: CouponType, value: Double, minOrderAmount: Double, expiredAt: ZonedDateTime, quantity: Int): CouponModel =
         CouponModel.of(
             name = name,
             type = type,
             value = value,
             minOrderAmount = minOrderAmount,
             expiredAt = expiredAt,
+            quantity = quantity,
         ).let { couponRepository.save(it) }
 
     fun getCoupon(couponId: Long): CouponModel =
