@@ -57,6 +57,8 @@ class CouponFacade(
 
         val requestId = UUID.randomUUID().toString()
 
+        couponService.createCouponIssueRequest(requestId, coupon.id, user.id)
+
         couponIssueRequestRepository.save(CouponIssueRequestModel.of(requestId = requestId, couponId = coupon.id, userId = user.id))
         outboxRepository.save(OutboxModel.of(
             aggregateId = coupon.id.toString(),
