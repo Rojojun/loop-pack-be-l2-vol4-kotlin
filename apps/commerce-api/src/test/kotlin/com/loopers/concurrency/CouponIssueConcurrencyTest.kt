@@ -32,8 +32,6 @@ class CouponIssueConcurrencyTest @Autowired constructor(
     private val couponIssueRequestRepository: CouponIssueRequestRepository,
     private val userCouponService: UserCouponService,
     private val databaseCleanUp: DatabaseCleanUp,
-    issueRequestRepository: CouponIssueRequestRepository,
-    requestRepository: CouponIssueRequestRepository,
 ){
     @AfterEach
     fun tearDown() = databaseCleanUp.truncateAllTables()
