@@ -11,11 +11,11 @@ import org.springframework.data.jpa.repository.Query
 interface UserCouponJpaRepository : JpaRepository<UserCouponModel, Long> {
     fun findAllByCoupon_Id(couponId: Long, pageable: Pageable): Page<UserCouponModel>
 
-    fun countByCoupon_Id(couponId: Long): Long
-
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     fun findWithLockById(id: Long): UserCouponModel?
 
     @Query("SELECT uc FROM UserCouponModel uc JOIN FETCH uc.coupon WHERE uc.userId = :userId")
     fun findByUserId(userId: Long): List<UserCouponModel>
+
+    fun countAllByCoupon_Id(couponId: Long): Long
 }

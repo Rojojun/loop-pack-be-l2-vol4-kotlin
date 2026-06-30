@@ -60,4 +60,9 @@ class CouponV1Dto {
         val requestId: String,
         val status: CouponIssueStatus = CouponIssueStatus.PENDING
     )
+
+    data class CouponIssueRequestInfo(
+        val requestId: String,
+        val status: CouponIssueStatus,
+    )
 }

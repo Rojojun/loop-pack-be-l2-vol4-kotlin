@@ -44,4 +44,10 @@ class CouponV1Controller(
         val response = info.map { CouponV1Dto.CouponResponse.from(it) }
         return ApiResponse.success(response)
     }
+
+    @GetMapping("/issue-requests/{requestId}")
+    fun getIssueRequest(@PathVariable requestId: String): ApiResponse<CouponV1Dto.CouponIssueRequestInfo> {
+        val info = couponFacade.getIssueRequest(requestId)
+        return ApiResponse.success(CouponV1Dto.CouponIssueRequestInfo(info.requestId, info.status))
+    }
 }

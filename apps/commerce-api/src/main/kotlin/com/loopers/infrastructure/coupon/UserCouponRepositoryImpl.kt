@@ -21,4 +21,7 @@ class UserCouponRepositoryImpl(
 
     override fun save(userCouponModel: UserCouponModel): UserCouponModel =
         userCouponJpaRepository.save(userCouponModel)
+
+    override fun countAllByCouponId(couponId: Long): Long =
+        userCouponJpaRepository.countAllByCoupon_Id(couponId)
 }
