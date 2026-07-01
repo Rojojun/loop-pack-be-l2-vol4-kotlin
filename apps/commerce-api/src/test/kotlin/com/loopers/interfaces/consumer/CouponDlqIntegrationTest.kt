@@ -23,7 +23,7 @@ import java.util.UUID
 
 @SpringBootTest(properties = ["spring.kafka.properties.auto.offset.reset=earliest"])
 @EmbeddedKafka(
-    topics = [KafkaTopics.COUPON_ISSUE_REQUESTS, "coupon-issue-requests.DLT"],
+    topics = [KafkaTopics.COUPON_ISSUE_REQUESTS, KafkaTopics.COUPON_ISSUE_REQUESTS_DLT],
     bootstrapServersProperty = "spring.kafka.bootstrap-servers",
 )
 class CouponDlqIntegrationTest @Autowired constructor(
@@ -50,7 +50,7 @@ class CouponDlqIntegrationTest @Autowired constructor(
             StringDeserializer(),
             ByteArrayDeserializer(),
         ).createConsumer()
-        dltConsumer.subscribe(listOf("coupon-issue-requests.DLT"))
+        dltConsumer.subscribe(listOf(KafkaTopics.COUPON_ISSUE_REQUESTS_DLT))
 
         // when
         kafkaTemplate.send(
@@ -60,7 +60,7 @@ class CouponDlqIntegrationTest @Autowired constructor(
         )
 
         // then
-        val record = KafkaTestUtils.getSingleRecord(dltConsumer, "coupon-issue-requests.DLT", Duration.ofSeconds(15))
+        val record = KafkaTestUtils.getSingleRecord(dltConsumer, KafkaTopics.COUPON_ISSUE_REQUESTS_DLT, Duration.ofSeconds(15))
         assertThat(record).isNotNull
 
         dltConsumer.close()

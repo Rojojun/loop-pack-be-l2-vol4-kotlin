@@ -5,4 +5,5 @@ object KafkaTopics {
     const val ORDER_EVENTS = "order-events"
     const val VIEW_EVENTS = "view-events"
     const val COUPON_ISSUE_REQUESTS = "coupon-issue-requests"
+    const val COUPON_ISSUE_REQUESTS_DLT = "$COUPON_ISSUE_REQUESTS-dlt"
 }
