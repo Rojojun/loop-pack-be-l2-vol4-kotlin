@@ -21,6 +21,7 @@ spring:
     import:
       - jpa.yml
       - redis.yml
+      - kafka.yml
       - logging.yml
       - monitoring.yml
 
@@ -74,6 +75,13 @@ payment:
   reconcile:
     interval: 10s
     stale-threshold: 30s
+
+queue:
+  activate:
+    interval: 1s
+    batch-size: 100
+  token:
+    ttl: 5m
 
 ---
 spring:
